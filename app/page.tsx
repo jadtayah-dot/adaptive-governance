@@ -1,69 +1,352 @@
-import Image from "next/image";
+import home from '@/content/home.json'
+
+// Every string on this page comes from content/home.json, which is a verbatim
+// transcription of docs/website content.md. No copy is written here.
+
+const SECTION = 'mx-auto w-full max-w-5xl px-6 py-20 md:px-10 md:py-32'
+const PROSE = 'max-w-[68ch]'
+const H2 = 'text-[2rem] leading-tight font-semibold tracking-tight'
+// No text-transform here. Uppercasing would alter the copy as displayed, and the
+// hero metadata line and the team labels carry names and titles.
+const LABEL = 'font-mono text-[0.8rem] tracking-wide text-ink-muted'
+
+/** Splits a middot separated line from the copy into its parts. Adds no words. */
+function parts(line: string) {
+  return line.split('·').map((s) => s.trim()).filter(Boolean)
+}
+
+/** A section level link. Label and detail both come from the copy file. */
+function SectionLink({
+  href,
+  label,
+  detail,
+}: {
+  href: string
+  label: string
+  detail?: string
+}) {
+  return (
+    <p className="mt-8 max-w-[68ch] leading-relaxed">
+      <a href={href} className="text-accent underline underline-offset-4">
+        {label}
+      </a>
+      {detail ? <span className="text-ink-muted"> {detail}</span> : null}
+    </p>
+  )
+}
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="bg-surface text-ink">
+      <Hero />
+      <Studies />
+      <Cases />
+      <Objectives />
+      <Corpus />
+      <Roadmap />
+      <Outputs />
+      <Events />
+      <Team />
+      <Collaborate />
+      <Footer />
     </div>
-  );
+  )
+}
+
+function Hero() {
+  const c = home.hero
+  return (
+    <section id="hero" className={`${SECTION} border-b border-rule`}>
+      <h1 className="max-w-[20ch] text-[2.25rem] leading-[1.1] font-semibold tracking-tight md:text-[3rem]">
+        {c.title}
+      </h1>
+      <p className="mt-6 max-w-[46ch] text-[1.25rem] leading-snug text-accent">{c.subtitle}</p>
+      <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.standfirst}</p>
+      <p className={`mt-10 ${LABEL} not-italic leading-relaxed`}>{c.metadata}</p>
+      <p className="mt-16 max-w-[46ch] text-[0.9rem] text-ink-muted">{c.scrollCue}</p>
+    </section>
+  )
+}
+
+function Studies() {
+  const c = home.studies
+  return (
+    <section id="studies" className={`${SECTION} border-b border-rule`}>
+      <h2 className={`${H2} max-w-[24ch]`}>{c.heading}</h2>
+      <div className={`mt-10 space-y-6 ${PROSE}`}>
+        {c.body.map((p) => (
+          <p key={p.slice(0, 32)}>{p}</p>
+        ))}
+      </div>
+      <dl className="mt-16 grid border-t border-l border-rule md:grid-cols-3">
+        {c.definitions.map((d) => (
+          <div key={d.term} className="border-r border-b border-rule bg-surface-raised p-6">
+            <dt className="text-[1.25rem] font-semibold text-accent">{d.term}</dt>
+            <dd className="mt-3 text-[0.9rem] leading-relaxed text-ink-muted">{d.text}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
+
+function Cases() {
+  const c = home.cases
+  return (
+    <section id="cases" className={`${SECTION} border-b border-rule`}>
+      <h2 className={H2}>{c.heading}</h2>
+      <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
+      <ol className="mt-16 border-t border-rule">
+        {c.items.map((item) => (
+          <li
+            key={item.label}
+            id={`case-${item.label.split(' ')[1]}`}
+            className="grid gap-4 border-b border-rule py-8 md:grid-cols-[8rem_1fr] md:gap-10"
+          >
+            <p className={LABEL}>{item.label}</p>
+            <div className={PROSE}>
+              <h3 className="text-[1.6rem] leading-tight font-semibold">{item.title}</h3>
+              <p className="mt-4">{item.description}</p>
+              <p className="mt-4 text-[0.9rem] text-ink-muted">{item.leads}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+function Objectives() {
+  const c = home.objectives
+  return (
+    <section id="objectives" className={`${SECTION} border-b border-rule`}>
+      <h2 className={H2}>{c.heading}</h2>
+      <div className="mt-16 grid border-t border-l border-rule md:grid-cols-2">
+        {c.items.map((o) => (
+          <div key={o.heading} className="border-r border-b border-rule bg-surface-raised p-6 md:p-8">
+            <h3 className="text-[1.25rem] leading-snug font-semibold text-accent">{o.heading}</h3>
+            <p className="mt-4 leading-relaxed text-ink-muted">{o.body}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Corpus() {
+  const c = home.corpus
+  return (
+    <section id="corpus" className={`${SECTION} border-b border-rule`}>
+      <h2 className={H2}>{c.heading}</h2>
+      <div className={`mt-10 space-y-6 ${PROSE}`}>
+        {c.body.map((p) => (
+          <p key={p.slice(0, 32)}>{p}</p>
+        ))}
+      </div>
+
+      {/* Full viewport height block reserved for the globe. Deliberately empty. */}
+      <div
+        id="globe"
+        data-testid="globe-placeholder"
+        aria-hidden="true"
+        className="mt-16 h-screen w-full border border-rule bg-surface-raised"
+      />
+
+      <p className="mt-6 max-w-[68ch] text-[0.9rem] leading-relaxed text-ink-muted">
+        {c.globeNote}
+      </p>
+
+      <SectionLink
+        href={home.nav.corpusLink.href}
+        label={home.nav.corpusLink.label}
+        detail={home.nav.corpusLink.detail}
+      />
+
+      {/* Rendered as the literal lines from the copy, middots included. */}
+      <div className="mt-16 grid border-t border-l border-rule md:grid-cols-2">
+        <p className="border-r border-b border-rule bg-surface-raised p-6 text-[0.9rem] leading-relaxed text-ink-muted">
+          {c.filterLabels}
+        </p>
+        <p className="border-r border-b border-rule bg-surface-raised p-6 text-[0.9rem] leading-relaxed text-ink-muted">
+          {c.recordDetailFields}
+        </p>
+      </div>
+    </section>
+  )
+}
+
+function Roadmap() {
+  const c = home.roadmap
+  return (
+    <section id="roadmap" className={`${SECTION} border-b border-rule`}>
+      <h2 className={H2}>{c.heading}</h2>
+      <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
+      <ol className="mt-16 border-t border-rule">
+        {c.phases.map((p) => (
+          <li
+            key={p.title}
+            className="grid gap-2 border-b border-rule py-6 md:grid-cols-[minmax(0,26rem)_1fr] md:gap-10"
+          >
+            {/* The dates are scaffolding, so they are muted. The activity is the content. */}
+            <h3 className="font-mono text-[0.9rem] leading-relaxed text-ink-muted">{p.title}</h3>
+            <p className="leading-relaxed text-ink">{p.body}</p>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-8 max-w-[68ch] text-[0.9rem] text-ink-muted">{c.note}</p>
+    </section>
+  )
+}
+
+function Outputs() {
+  const c = home.outputs
+  return (
+    <section id="outputs" className={`${SECTION} border-b border-rule`}>
+      <h2 className={H2}>{c.heading}</h2>
+      <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
+      <dl className="mt-16 grid border-t border-l border-rule md:grid-cols-2">
+        {c.items.map((o) => (
+          <div key={o.title} className="border-r border-b border-rule bg-surface-raised p-6">
+            <dt className="text-[1.25rem] font-semibold">{o.title}</dt>
+            <dd className="mt-3 leading-relaxed text-ink-muted">{o.body}</dd>
+          </div>
+        ))}
+      </dl>
+      <SectionLink href={home.nav.outputsLink.href} label={home.nav.outputsLink.label} />
+    </section>
+  )
+}
+
+function Events() {
+  const c = home.events
+  return (
+    <section id="events" className={`${SECTION} border-b border-rule`}>
+      <h2 className={H2}>{c.heading}</h2>
+      <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
+      <p className={`mt-8 leading-relaxed text-ink-muted ${PROSE}`}>{c.plannedStrands}</p>
+      <SectionLink href={home.nav.eventsLink.href} label={home.nav.eventsLink.label} />
+    </section>
+  )
+}
+
+function Team() {
+  const c = home.team
+  return (
+    <section id="team" className={`${SECTION} border-b border-rule`}>
+      <h2 className={H2}>{c.heading}</h2>
+      <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
+
+      <h3 className={`mt-16 ${LABEL}`}>{c.investigatorsLabel}</h3>
+      <ul className="mt-6 grid border-t border-l border-rule md:grid-cols-2">
+        {c.investigators.map((person) => (
+          <li key={person.name} className="border-r border-b border-rule bg-surface-raised p-6">
+            <p className="text-[1.25rem] font-semibold">{person.name}</p>
+            <p className="mt-2 text-[0.9rem] leading-relaxed text-ink-muted">{person.role}</p>
+          </li>
+        ))}
+      </ul>
+
+      <h3 className={`mt-12 ${LABEL}`}>{c.partnersLabel}</h3>
+      <ul className="mt-6 grid border-t border-l border-rule md:grid-cols-2">
+        {c.partners.map((person) => (
+          <li key={person.name} className="border-r border-b border-rule bg-surface-raised p-6">
+            <p className="text-[1.25rem] font-semibold">{person.name}</p>
+            <p className="mt-2 text-[0.9rem] leading-relaxed text-ink-muted">{person.role}</p>
+          </li>
+        ))}
+      </ul>
+
+      <SectionLink href={home.nav.teamLink.href} label={home.nav.teamLink.label} />
+    </section>
+  )
+}
+
+function Collaborate() {
+  const c = home.collaborate
+  const fields = parts(c.formFields)
+  return (
+    <section id="collaborate" className={`${SECTION} border-b border-rule`}>
+      <h2 className={H2}>{c.heading}</h2>
+      <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
+
+      <dl className={`mt-10 space-y-6 ${PROSE}`}>
+        {c.audiences.map((a) => (
+          <div key={a.label}>
+            <dt className="font-semibold text-accent">{a.label}</dt>
+            <dd className="mt-1 leading-relaxed text-ink-muted">{a.text}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {/* Fields come from the copy. No endpoint exists yet, so this does not submit. */}
+      <form className="mt-16 grid max-w-[46rem] gap-6 md:grid-cols-2">
+        {fields.map((field, i) => (
+          <label
+            key={field}
+            className={i === fields.length - 1 ? 'block md:col-span-2' : 'block'}
+          >
+            <span className={LABEL}>{field}</span>
+            {i === fields.length - 1 ? (
+              <textarea
+                rows={5}
+                name={field}
+                className="mt-2 w-full border border-rule bg-surface-raised p-3 text-ink"
+              />
+            ) : (
+              <input
+                type="text"
+                name={field}
+                className="mt-2 w-full border border-rule bg-surface-raised p-3 text-ink"
+              />
+            )}
+          </label>
+        ))}
+      </form>
+
+      <p className="mt-8 max-w-[68ch] text-[0.9rem] text-ink-muted">{c.fallback}</p>
+      <p className="mt-2">
+        <a
+          href={`mailto:${c.email}`}
+          className="font-mono text-accent underline underline-offset-4"
+        >
+          {c.email}
+        </a>
+      </p>
+    </section>
+  )
+}
+
+function Footer() {
+  const c = home.footer
+  return (
+    <footer id="footer" className={`${SECTION} py-16 md:py-20`}>
+      <div className="grid gap-10 sm:grid-cols-3">
+        {home.nav.footerColumns.map((column) => (
+          <nav key={column.heading} aria-labelledby={`footer-${column.heading}`}>
+            <h2 id={`footer-${column.heading}`} className={LABEL}>
+              {column.heading}
+            </h2>
+            <ul className="mt-2">
+              {column.links.map((link) => (
+                <li key={link.label}>
+                  <a
+                    href={link.href}
+                    className="inline-flex min-h-11 items-center text-[0.9rem] text-ink underline underline-offset-4"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+
+      <div className="mt-16 max-w-[68ch] space-y-4 border-t border-rule pt-8 text-[0.9rem] leading-relaxed text-ink-muted">
+        {c.lines.map((line) => (
+          <p key={line.slice(0, 32)}>{line}</p>
+        ))}
+      </div>
+    </footer>
+  )
 }

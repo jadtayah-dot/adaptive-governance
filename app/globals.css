@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
+/*
+  Tokens. See DESIGN.md. Components use these, never a raw value.
+  Every colour was checked with the WCAG contrast formula, and the accent and
+  globe pair was checked under simulated deuteranopia and protanopia.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Colour */
+  --ag-surface: #12100e;
+  --ag-surface-raised: #1b1815;
+  --ag-ink: #ece7df;
+  --ag-ink-muted: #a8a096;
+  --ag-accent: #d9a441;
+  --ag-accent-dim: #a87f31;
+  --ag-rule: #726b60;
+
+  /* Globe only. Existing evidence against evidence this project is creating. */
+  --ag-globe-existing: #d9a441;
+  --ag-globe-project: #7fd0c8;
+  /* Below this opacity the accent drops under 3:1 on the surface and stops
+     being perceivable. Scale polygon fill between this and 1, never from 0. */
+  --ag-globe-fill-floor: 0.55;
+
+  /* Type */
+  --ag-font-heading: var(--font-newsreader), Georgia, serif;
+  --ag-font-body: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --ag-font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --ag-heading-weight: 600;
+  --ag-heading-tracking: -0.01em;
+  --ag-body-leading: 1.65;
+
+  --ag-text-xs: 0.8rem;
+  --ag-text-sm: 0.9rem;
+  --ag-text-base: 1rem;
+  --ag-text-lg: 1.25rem;
+  --ag-text-xl: 1.6rem;
+  --ag-text-2xl: 2rem;
+  --ag-text-3xl: 3rem;
+
+  /* Space */
+  --ag-space-xs: 0.5rem;
+  --ag-space-sm: 0.75rem;
+  --ag-space-md: 1.5rem;
+  --ag-space-lg: 2.5rem;
+  --ag-space-xl: 4rem;
+  --ag-space-2xl: 6rem;
+  --ag-space-3xl: 8rem;
+
+  --ag-measure: 68ch;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-surface: var(--ag-surface);
+  --color-surface-raised: var(--ag-surface-raised);
+  --color-ink: var(--ag-ink);
+  --color-ink-muted: var(--ag-ink-muted);
+  --color-accent: var(--ag-accent);
+  --color-accent-dim: var(--ag-accent-dim);
+  --color-rule: var(--ag-rule);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-globe-existing: var(--ag-globe-existing);
+  --color-globe-project: var(--ag-globe-project);
+
+  --font-sans: var(--ag-font-body);
+  --font-mono: var(--ag-font-mono);
+  --font-heading: var(--ag-font-heading);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ag-surface);
+  color: var(--ag-ink);
+  font-family: var(--ag-font-body);
+  font-size: var(--ag-text-base);
+  line-height: var(--ag-body-leading);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* No motion anywhere at this stage. See DESIGN.md. */
+* {
+  transition: none !important;
+  animation: none !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ag-accent);
+  outline-offset: 2px;
+}
+
+/* In the base layer so an explicit utility such as font-mono still wins. */
+@layer base {
+  h1, h2, h3 {
+    font-family: var(--ag-font-heading);
+    font-weight: var(--ag-heading-weight);
+    letter-spacing: var(--ag-heading-tracking);
+  }
 }
