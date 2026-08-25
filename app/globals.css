@@ -48,6 +48,9 @@
   --ag-space-3xl: 8rem;
 
   --ag-measure: 68ch;
+
+  /* One uniform treatment across every headshot. See DESIGN.md. */
+  --ag-portrait-filter: grayscale(1) contrast(1.05) brightness(0.98);
 }
 
 @theme inline {

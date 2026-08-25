@@ -6,7 +6,6 @@
     "metadata": "Hamad Bin Khalifa University Signature Research Grant · July 2025 to July 2027 · Project Lead Dr. Evren Tok",
     "scrollCue": "The globe below is built from the project corpus. Scroll to open it."
   },
-
   "studies": {
     "heading": "Adaptive governance, and when it becomes transformative",
     "body": [
@@ -29,7 +28,6 @@
       }
     ]
   },
-
   "cases": {
     "heading": "Five cases, one comparison",
     "intro": "Each case was selected against four criteria: state sponsorship, relevance across more than one scale, accessible data, and alignment with Qatar National Vision 2030. Each is studied through document analysis, structured interviews and participatory methods. A synthesis matrix then compares them, and that comparison is what produces the framework.",
@@ -66,7 +64,6 @@
       }
     ]
   },
-
   "objectives": {
     "heading": "What the project is for",
     "items": [
@@ -88,7 +85,6 @@
       }
     ]
   },
-
   "corpus": {
     "heading": "The evidence base",
     "body": [
@@ -101,7 +97,6 @@
     "emptyState": "No records match those filters. Clear one and try again.",
     "recordDetailFields": "Title · Authors · Year · Outlet · Link · Country of study · Theme · Method · Screening note"
   },
-
   "roadmap": {
     "heading": "Roadmap",
     "intro": "Twenty four months, five work packages, running in parallel with a synthesis phase at the end. Status is updated as phases close.",
@@ -145,7 +140,6 @@
     ],
     "note": "Dates reflect the approved research plan. Where a phase has moved, the status line records it."
   },
-
   "outputs": {
     "heading": "Outputs",
     "intro": "Published work, tools and teaching material. Items appear here when they are public.",
@@ -177,7 +171,6 @@
     ],
     "emptyState": "Nothing published in this category yet. It will appear here when it is."
   },
-
   "events": {
     "heading": "Events",
     "intro": "Workshops, panels and course sessions. Past events keep their page.",
@@ -185,7 +178,6 @@
     "plannedStrands": "Panels at the International Workshop on Public Policy and the International Conference on Public Policy. Joint sessions and short courses with ESCWA and the Ministry of Communication and Information Technology. Training course delivery in 2027.",
     "emptyState": "No upcoming events. Past events are listed below."
   },
-
   "team": {
     "heading": "Team",
     "intro": "Seven investigators across four Hamad Bin Khalifa University entities, with five external partners in government, in a United Nations regional commission and in the private sector.",
@@ -193,58 +185,69 @@
     "investigators": [
       {
         "name": "Dr. Evren Tok",
-        "role": "Project Lead. College of Public Policy. Leads work package three, and leads synthesis, the dashboard and the comparative policy paper."
+        "role": "Project Lead. College of Public Policy. Leads work package three, and leads synthesis, the dashboard and the comparative policy paper.",
+        "image": "/images/team/evren-tok.webp"
       },
       {
         "name": "Dr. Esmat Zaidan",
-        "role": "Project Co Lead. College of Public Policy. Leads work package two on cities and public services."
+        "role": "Project Co Lead. College of Public Policy. Leads work package two on cities and public services.",
+        "image": "/images/team/esmat-zaidan.webp"
       },
       {
         "name": "Dr. Georgios Dimitropoulos",
-        "role": "Project Co Lead. College of Law. Leads work package one on digital transformation."
+        "role": "Project Co Lead. College of Law. Leads work package one on digital transformation.",
+        "image": "/images/team/georgios-dimitropoulos.webp"
       },
       {
         "name": "Dr. George Mikros",
-        "role": "Project Co Lead. College of Humanities and Social Sciences. Leads work package four on computational linguistics."
+        "role": "Project Co Lead. College of Humanities and Social Sciences. Leads work package four on computational linguistics.",
+        "image": "/images/team/george-mikros.webp"
       },
       {
         "name": "Dr. Asmaa Al Fadala",
-        "role": "Project Co Lead. College of Public Policy."
+        "role": "Project Co Lead. College of Public Policy.",
+        "image": "/images/team/asmaa-al-fadala.webp"
       },
       {
         "name": "Dr. Abdulfatah Mohamed",
-        "role": "Project Co Lead. College of Islamic Studies. Leads work package five on humanitarian governance."
+        "role": "Project Co Lead. College of Islamic Studies. Leads work package five on humanitarian governance.",
+        "image": "/images/team/abdulfatah-mohamed.webp"
       },
       {
         "name": "Dr. Kehinde Olaoye",
-        "role": "Principal Investigator. College of Law. Work package one."
+        "role": "Principal Investigator. College of Law. Work package one.",
+        "image": "/images/team/kehinde-olaoye.webp"
       }
     ],
     "partnersLabel": "Partners",
     "partners": [
       {
         "name": "Dr. Sukaina Nasrawi",
-        "role": "Economic and Social Commission for Western Asia. Co leads the work on urban governance and smart cities and supplies regional context for the comparative paper."
+        "role": "Economic and Social Commission for Western Asia. Co leads the work on urban governance and smart cities and supplies regional context for the comparative paper.",
+        "image": "/images/team/sukaina-nasrawi.webp"
       },
       {
         "name": "Ms. Enjood Al Naemi",
-        "role": "Civil Service and Government Development Bureau. Government liaison, aligning the work with national strategy for public sector development."
+        "role": "Civil Service and Government Development Bureau. Government liaison, aligning the work with national strategy for public sector development.",
+        "image": ""
       },
       {
         "name": "H.E. Dr. Abdulaziz Al Horr",
-        "role": "Ministry of Foreign Affairs. Informs the humanitarian diplomacy case and the multiscalar framing of the analysis."
+        "role": "Ministry of Foreign Affairs. Informs the humanitarian diplomacy case and the multiscalar framing of the analysis.",
+        "image": ""
       },
       {
         "name": "Dr. Hassan Al Darbesti",
-        "role": "Ministry of Communication and Information Technology. Practitioner perspective on digital transformation, policy labs and smart city work, and input into the training course."
+        "role": "Ministry of Communication and Information Technology. Practitioner perspective on digital transformation, policy labs and smart city work, and input into the training course.",
+        "image": ""
       },
       {
         "name": "Mr. Nayef Ibrahim",
-        "role": "Ibtechar. Private sector and innovation perspective on implementing digital policy, and input into the training course."
+        "role": "Ibtechar. Private sector and innovation perspective on implementing digital policy, and input into the training course.",
+        "image": "/images/team/nayef-ibrahim.webp"
       }
     ]
   },
-
   "collaborate": {
     "heading": "Get in touch",
     "intro": "We are interested in three kinds of contact.",
@@ -267,51 +270,102 @@
     "fallback": "If you would rather write directly, the project email is listed below.",
     "email": "flagship_horizon@hbku.edu.qa"
   },
-
   "nav": {
     "skipLink": "Skip to content.",
     "primaryLabel": "Primary navigation",
     "primary": [
-      { "label": "Project", "href": "/#studies" },
-      { "label": "Cases", "href": "/#cases" },
-      { "label": "Corpus", "href": "/corpus" },
-      { "label": "Outputs", "href": "/#outputs" },
-      { "label": "Events", "href": "/#events" },
-      { "label": "Team", "href": "/#team" },
-      { "label": "Contact", "href": "/#collaborate" }
+      {
+        "label": "Project",
+        "href": "/#studies"
+      },
+      {
+        "label": "Cases",
+        "href": "/#cases"
+      },
+      {
+        "label": "Corpus",
+        "href": "/corpus"
+      },
+      {
+        "label": "Outputs",
+        "href": "/#outputs"
+      },
+      {
+        "label": "Events",
+        "href": "/#events"
+      },
+      {
+        "label": "Team",
+        "href": "/#team"
+      },
+      {
+        "label": "Contact",
+        "href": "/#collaborate"
+      }
     ],
     "corpusLink": {
       "label": "Open the corpus.",
       "detail": "All 217 studies, filterable by country, sector, method, level of governance and normative stance.",
       "href": "/corpus"
     },
-    "outputsLink": { "label": "See all outputs.", "href": "/outputs" },
-    "eventsLink": { "label": "See all events.", "href": "/events" },
-    "teamLink": { "label": "Full team profiles.", "href": "/team" },
+    "outputsLink": {
+      "label": "See all outputs.",
+      "href": "/outputs"
+    },
+    "eventsLink": {
+      "label": "See all events.",
+      "href": "/events"
+    },
+    "teamLink": {
+      "label": "Full team profiles.",
+      "href": "/team"
+    },
     "footerColumns": [
       {
         "heading": "Project",
         "links": [
-          { "label": "Cases", "href": "/#cases" },
-          { "label": "Roadmap", "href": "/#roadmap" },
-          { "label": "Team", "href": "/#team" }
+          {
+            "label": "Cases",
+            "href": "/#cases"
+          },
+          {
+            "label": "Roadmap",
+            "href": "/#roadmap"
+          },
+          {
+            "label": "Team",
+            "href": "/#team"
+          }
         ]
       },
       {
         "heading": "Research",
         "links": [
-          { "label": "Corpus", "href": "/corpus" },
-          { "label": "Outputs", "href": "/#outputs" },
-          { "label": "Events", "href": "/#events" }
+          {
+            "label": "Corpus",
+            "href": "/corpus"
+          },
+          {
+            "label": "Outputs",
+            "href": "/#outputs"
+          },
+          {
+            "label": "Events",
+            "href": "/#events"
+          }
         ]
       },
       {
         "heading": "Contact",
-        "links": [{ "label": "Get in touch", "href": "/#collaborate" }]
+        "links": [
+          {
+            "label": "Get in touch",
+            "href": "/#collaborate"
+          }
+        ]
       }
     ]
   },
-
   "footer": {
     "lines": [
       "Visualizing Adaptive and Transformative Governance. College of Public Policy, Hamad Bin Khalifa University, Education City, Doha, Qatar.",

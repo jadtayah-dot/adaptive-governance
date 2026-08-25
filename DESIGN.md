@@ -101,6 +101,22 @@ One scale, in `rem`. Sections use `--ag-space-3xl` above and below on wide scree
 | `--ag-space-2xl` | 6 |
 | `--ag-space-3xl` | 8 |
 
+## Portraits
+
+Headshots arrive from different places in different registers: HBKU studio portraits on grey, and outdoor photographs from partner organisations. Mixed quality is the fastest way to make a professional site look amateur, so **every portrait gets the same treatment and none gets special handling**.
+
+| Token | Value |
+|---|---|
+| `--ag-portrait-filter` | `grayscale(1) contrast(1.05) brightness(0.98)` |
+
+- One square frame, 96 pixels, bordered in `--ag-rule` over `--ag-surface`.
+- `object-fit: cover` with `object-position: center 28%`, so faces land in frame on both near square studio shots and tall portraits.
+- Full desaturation. It unifies a grey studio backdrop with a blossom tree and lets the single accent stay the only colour on the page.
+- The frame is drawn even where no headshot has been supplied, so the grid does not go ragged. Three partners are in that state.
+- Images are stored at 256 pixels wide in webp. Serve them as plain `img` tags with explicit width and height, not through `next/image`: at this size the optimizer buys nothing and its lazy loading did not resolve reliably.
+
+Provenance for every file is in `content/headshot sources.json`.
+
 ## Rules and grids
 
 Grids draw their rules per cell, with a top and left border on the container and a right and bottom border on each cell. **Do not paint the gap.** A grid with `gap-px` over a rule coloured background leaves a filled slab wherever an odd item count leaves an empty cell, which is what happened to the seven investigators and five partners.

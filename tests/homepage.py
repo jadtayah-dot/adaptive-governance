@@ -117,6 +117,8 @@ def main():
                     continue  # visually hidden until focused, checked separately below
                 if path == "nav.primaryLabel":
                     continue  # the accessible name of the nav landmark, not visible text
+                if path.endswith(".image"):
+                    continue  # an asset path, checked as an image below
                 if path in SPLIT_ON_MIDDOT:
                     for part in [p_.strip() for p_ in text.split("·") if p_.strip()]:
                         if part not in body_text:
@@ -157,6 +159,66 @@ def main():
                         )
                 elif href.startswith("/"):
                     notes.append(f"[{label}] route link {link['text']!r} goes to {href}")
+
+            # 3d. every supplied headshot renders, is named by its owner, and
+            #     carries the one uniform treatment
+            people = copy["team"]["investigators"] + copy["team"]["partners"]
+            expected = [p_ for p_ in people if p_["image"]]
+
+            if expected:
+                page.locator("#team").scroll_into_view_if_needed()
+                try:
+                    # Headshots are lazy loaded and the team section sits far down
+                    # the page, so wait for them rather than assuming.
+                    page.wait_for_function(
+                        "n => document.querySelectorAll('img[alt]').length >= n"
+                        " && [...document.querySelectorAll('img[alt]')].every(i => i.naturalWidth > 0)",
+                        arg=len(expected),
+                        timeout=20000,
+                    )
+                except Exception:
+                    pass  # the per person checks below report what is actually wrong
+
+            shots = {
+                s_["alt"]: s_
+                for s_ in page.evaluate(
+                    """() => [...document.querySelectorAll('img[alt]')].map(el => {
+                        const r = el.getBoundingClientRect();
+                        return { alt: el.alt, nw: el.naturalWidth, w: r.width, h: r.height,
+                                 src: el.currentSrc || '', filter: getComputedStyle(el).filter };
+                    })"""
+                )
+            }
+
+            for person in expected:
+                shot = shots.get(person["name"])
+                if shot is None:
+                    problems.append(f"[{label}] no headshot rendered for {person['name']}")
+                    continue
+                # A box exists even when no pixels arrived, so check the decoded
+                # image, not the layout. Lazy loading gave a false pass here once.
+                if not shot["nw"]:
+                    problems.append(
+                        f"[{label}] headshot for {person['name']} has no pixels: {shot['src'][:80]}"
+                    )
+                    continue
+                if abs(shot["w"] - shot["h"]) > 1:
+                    problems.append(
+                        f"[{label}] headshot for {person['name']} is not square: "
+                        f"{shot['w']:.0f}x{shot['h']:.0f}"
+                    )
+                requested = re.search(r"[?&]w=(\d+)", shot["src"])
+                if requested and int(requested.group(1)) > 4 * max(shot["w"], 1):
+                    problems.append(
+                        f"[{label}] headshot for {person['name']} requests a "
+                        f"{requested.group(1)}px source for a {shot['w']:.0f}px box"
+                    )
+
+            treatments = {s_["filter"] for s_ in shots.values() if s_["nw"]}
+            if len(treatments) > 1:
+                problems.append(f"[{label}] headshots do not share one treatment: {treatments}")
+            if treatments and "grayscale" not in next(iter(treatments)):
+                problems.append(f"[{label}] headshots are not desaturated: {treatments}")
 
             # 4. no motion
             animated = page.evaluate(
@@ -248,7 +310,7 @@ def main():
                     notes.append(f"[390] tap target under 44px: <{s['tag']}> {s['w']}x{s['h']}")
 
             shot = os.path.join(SHOTS, f"home-{label}.png")
-            page.screenshot(path=shot, full_page=True)
+            page.screenshot(path=shot, full_page=True, timeout=120000)
             page_height = page.evaluate("document.documentElement.scrollHeight")
             notes.append(f"[{label}] full page height {page_height}px, screenshot {shot}")
 

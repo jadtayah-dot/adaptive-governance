@@ -1,3 +1,4 @@
+import GlobeMount from '@/components/GlobeMount'
 import home from '@/content/home.json'
 
 // Every string on this page comes from content/home.json, which is a verbatim
@@ -144,13 +145,21 @@ function Corpus() {
         ))}
       </div>
 
-      {/* Full viewport height block reserved for the globe. Deliberately empty. */}
+      {/*
+        Full viewport height globe well. Stage one: country polygons lit by
+        record count, slow rotation, hover and click. No scroll behaviour yet.
+        Still aria-hidden, and the canvas takes no focus: the same counts are
+        readable in the corpus table linked directly below. That is a holding
+        position, not a decision, and it needs revisiting before launch.
+      */}
       <div
         id="globe"
         data-testid="globe-placeholder"
         aria-hidden="true"
         className="mt-16 h-screen w-full border border-rule bg-surface-raised"
-      />
+      >
+        <GlobeMount />
+      </div>
 
       <p className="mt-6 max-w-[68ch] text-[0.9rem] leading-relaxed text-ink-muted">
         {c.globeNote}
@@ -239,25 +248,53 @@ function Team() {
       <h3 className={`mt-16 ${LABEL}`}>{c.investigatorsLabel}</h3>
       <ul className="mt-6 grid border-t border-l border-rule md:grid-cols-2">
         {c.investigators.map((person) => (
-          <li key={person.name} className="border-r border-b border-rule bg-surface-raised p-6">
-            <p className="text-[1.25rem] font-semibold">{person.name}</p>
-            <p className="mt-2 text-[0.9rem] leading-relaxed text-ink-muted">{person.role}</p>
-          </li>
+          <Person key={person.name} person={person} />
         ))}
       </ul>
 
       <h3 className={`mt-12 ${LABEL}`}>{c.partnersLabel}</h3>
       <ul className="mt-6 grid border-t border-l border-rule md:grid-cols-2">
         {c.partners.map((person) => (
-          <li key={person.name} className="border-r border-b border-rule bg-surface-raised p-6">
-            <p className="text-[1.25rem] font-semibold">{person.name}</p>
-            <p className="mt-2 text-[0.9rem] leading-relaxed text-ink-muted">{person.role}</p>
-          </li>
+          <Person key={person.name} person={person} />
         ))}
       </ul>
 
       <SectionLink href={home.nav.teamLink.href} label={home.nav.teamLink.label} />
     </section>
+  )
+}
+
+/**
+ * One team card. The headshots arrived at mixed sizes and in two different
+ * registers, studio portraits against an outdoor photograph, so all of them get
+ * the same square crop, taken at 28 percent from the top so faces land in frame and the same desaturation. Uniform
+ * treatment beats mixed quality. The frame is drawn even when no headshot has
+ * been supplied, so the grid does not go ragged.
+ */
+function Person({ person }: { person: { name: string; role: string; image: string } }) {
+  return (
+    <li className="flex gap-4 border-r border-b border-rule bg-surface-raised p-6">
+      <div className="size-24 shrink-0 overflow-hidden border border-rule bg-surface">
+        {person.image ? (
+          // A plain img rather than next/image. These are 96px avatars from
+          // local files, so the optimizer buys little, and its lazy loading and
+          // srcset were failing to resolve for the larger source files.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={person.image}
+            alt={person.name}
+            width={96}
+            height={96}
+            decoding="async"
+            className="h-full w-full object-cover object-[center_28%] [filter:var(--ag-portrait-filter)]"
+          />
+        ) : null}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[1.25rem] font-semibold">{person.name}</p>
+        <p className="mt-2 text-[0.9rem] leading-relaxed text-ink-muted">{person.role}</p>
+      </div>
+    </li>
   )
 }
 

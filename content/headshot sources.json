@@ -1,0 +1,19 @@
+{
+  "note": "Where each headshot in public/images/team came from. Files were resized to 256px wide and converted to webp, taking the set from 1,041,099 bytes to 48,686. Originals were not kept. Refetch from these URLs if a higher resolution is needed.",
+  "sources": {
+    "evren-tok.webp": "https://www.hbku.edu.qa/sites/default/files/staff/dr_etok_0_copy_1_0.jpg",
+    "esmat-zaidan.webp": "https://www.hbku.edu.qa/sites/default/files/staff/dr._esmat_zaidan_1.png",
+    "georgios-dimitropoulos.webp": "https://www.hbku.edu.qa/sites/default/files/staff/4-_georgios_dimitropoulos_1.jpg",
+    "george-mikros.webp": "https://www.hbku.edu.qa/sites/default/files/staff/dr-george-mikros_1_0.jpg",
+    "asmaa-al-fadala.webp": "https://www.hbku.edu.qa/sites/default/files/staff/dr._asmaa_1.png",
+    "abdulfatah-mohamed.webp": "https://www.hbku.edu.qa/sites/default/files/staff/dr._abdulfatah_said_mohamed_0.jpg",
+    "kehinde-olaoye.webp": "https://www.hbku.edu.qa/sites/default/files/staff/dr._kehinde_folake_olaoye_1.jpg",
+    "sukaina-nasrawi.webp": "https://rcp.unescwa.org/sites/default/files/webform/experts_registry/196/photo_sukaina_shared.jpg",
+    "nayef-ibrahim.webp": "https://ibtechar.com/wp-content/uploads/2024/12/nayef-al-ibrahim-photo.jpg"
+  },
+  "notSupplied": [
+    "Ms. Enjood Al Naemi",
+    "H.E. Dr. Abdulaziz Al Horr",
+    "Dr. Hassan Al Darbesti"
+  ]
+}
