@@ -96,7 +96,7 @@ The globe sequence has four scroll stages: whole, dissection into three concentr
 
 Approved package list, and nothing beyond it without asking: three, react-globe.gl, world-atlas, topojson-client, gsap, lenis, motion, papaparse, fuse.js, i18n-iso-countries.
 
-The corpus licence is covered and is supplied on request. It is deliberately not published on the site. **The footer as written says "Corpus data is published under a stated licence", which the site no longer does.** That sentence is now inaccurate and needs a copy decision, which is why it sits in the undecided list rather than being edited.
+The corpus licence is covered and is supplied on request. It is deliberately not published on the site, and the copy makes no claim about it: the sentence stating that corpus data is published under a stated licence was removed from the footer. No licence claim appears anywhere in the copy.
 
 Resolved, and settled in the copy:
 
@@ -110,7 +110,6 @@ Undecided, and not to be invented:
 
 * A line in section five of the copy stating the 217 figure, so the funnel from 1,172 to 272 to 217 is stated rather than implied. Section twelve now states 217 in the corpus link, so section five is the only place the number is still absent.
 * The routes `/outputs`, `/events` and `/team`. Section twelve links to all three and none exists yet, so those three links return 404 until the routes are built.
-* The footer line about the corpus licence. See below.
 
 ## Brand Commitments
 

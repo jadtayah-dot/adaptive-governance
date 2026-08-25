@@ -344,7 +344,7 @@ Visualizing Adaptive and Transformative Governance. College of Public Policy, Ha
 
 Funded under the Hamad Bin Khalifa University Signature Research Grant Program, third cycle, in the Global Transformation and Future of Governance signature area.
 
-Corpus data is published under a stated licence. Site content is the work of the project team.
+Site content is the work of the project team.
 
 ---
 
