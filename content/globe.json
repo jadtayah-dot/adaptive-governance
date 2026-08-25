@@ -1,4 +1,5 @@
 {
+  "openingNote": "Where adaptive governance has been studied, and how unevenly.",
   "shells": [
     {
       "id": "global",
@@ -16,7 +17,13 @@
       "gloss": "Qatar"
     }
   ],
-  "descentNote": "The region is almost entirely dark, and that is deliberate. Qatar holds zero studies and the whole Gulf holds one.",
+  "descentNote": "Qatar holds no studies. The Gulf holds one.",
   "nodesNote": "Five work packages. Evidence this project is creating.",
-  "stillAlt": "The globe at the end of the sequence. The Gulf seen from above, most of the region unlit, Qatar outlined and empty, and five nodes around Doha marking the work packages."
+  "stillAlt": "The globe at the end of the sequence. The Gulf seen from above, most of the region unlit, Qatar outlined and empty, and five nodes around Doha marking the work packages.",
+  "tooltip": {
+    "study": "study",
+    "studies": "studies",
+    "empty": "No studies in the corpus",
+    "filterHint": "Click to filter the corpus"
+  }
 }

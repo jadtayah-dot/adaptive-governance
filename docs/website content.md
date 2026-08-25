@@ -24,10 +24,6 @@ A two year research programme at the College of Public Policy, Hamad Bin Khalifa
 
 Hamad Bin Khalifa University Signature Research Grant · July 2025 to July 2027 · Project Lead Dr. Evren Tok
 
-**Globe line**
-
-The globe is built from the project corpus, 217 studies from the systematic review.
-
 ---
 
 ## 2. What the project studies
@@ -132,6 +128,10 @@ The project opened with a systematic review of the adaptive governance literatur
 The corpus is published here in full. Each record carries its title, authors, year, outlet, a link to the source, and the reason it was kept or excluded. You can filter by country, region, year, theme and method, and search across the set.
 
 It is also what drives the globe on this page. Each country is raised and lit in proportion to the number of studies the corpus holds from it. The distribution is uneven, and that unevenness is a finding: adaptive governance scholarship clusters in a small number of settings, and the Gulf is thin. Part of what this project is doing is making that thinner region legible.
+
+**Globe line**
+
+The globe is built from the project corpus, 217 studies from the systematic review.
 
 **Globe note. Sits directly under the globe. Not optional.**
 

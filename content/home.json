@@ -3,8 +3,7 @@
     "title": "Visualizing Adaptive and Transformative Governance",
     "subtitle": "Qatar at the nexus of local, regional, transnational and global change",
     "standfirst": "A two year research programme at the College of Public Policy, Hamad Bin Khalifa University, examining how governance systems in Qatar adapt under uncertainty and when adaptation becomes structural change. Five case studies, four colleges, five external partners.",
-    "metadata": "Hamad Bin Khalifa University Signature Research Grant · July 2025 to July 2027 · Project Lead Dr. Evren Tok",
-    "globeLine": "The globe is built from the project corpus, 217 studies from the systematic review."
+    "metadata": "Hamad Bin Khalifa University Signature Research Grant · July 2025 to July 2027 · Project Lead Dr. Evren Tok"
   },
   "studies": {
     "heading": "Adaptive governance, and when it becomes transformative",
@@ -92,6 +91,7 @@
       "The corpus is published here in full. Each record carries its title, authors, year, outlet, a link to the source, and the reason it was kept or excluded. You can filter by country, region, year, theme and method, and search across the set.",
       "It is also what drives the globe on this page. Each country is raised and lit in proportion to the number of studies the corpus holds from it. The distribution is uneven, and that unevenness is a finding: adaptive governance scholarship clusters in a small number of settings, and the Gulf is thin. Part of what this project is doing is making that thinner region legible."
     ],
+    "globeLine": "The globe is built from the project corpus, 217 studies from the systematic review.",
     "globeNote": "Studies covering more than one country are counted once for each. Country totals therefore exceed the number of studies.",
     "filterLabels": "Country · Region · Year · Theme · Method · Inclusion status",
     "emptyState": "No records match those filters. Clear one and try again.",

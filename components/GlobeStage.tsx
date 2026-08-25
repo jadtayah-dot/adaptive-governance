@@ -1,44 +1,39 @@
 'use client'
 
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
 
 import GlobeMount from './GlobeMount'
 import copy from '@/content/globe.json'
-import {
-  LABEL_CLEAR,
-  LABEL_REVEAL,
-  MIN_LIVE_WIDTH,
-  NODES_NOTE_REVEAL,
-  NOTE_REVEAL,
-  easeOut,
-  span,
-} from '@/lib/globe-sequence'
+import { HANDOVER_MS, MIN_LIVE_WIDTH, easeOut, span } from '@/lib/globe-sequence'
 
 /*
-  The pinned container. It runs from the top of the hero to the bottom of the
-  globe well in section five, and it holds the only globe instance on the page.
+  The pinned argument. It sits inside section five, where the copy says the
+  globe is, and it holds the only globe instance on the page.
+
+  The globe is the subject here, not a background. It fills the frame, nothing
+  is laid over the middle of it, and the only text is the sequence naming what
+  is happening at that moment. The long form prose is ordinary page above and
+  below, not a column running past the sphere: a globe with a paragraph beside
+  it that never refers to it reads as wallpaper, which is what this was.
+
+  Contrast is still 4.5:1 and it is still binding. It is met by placing each
+  passage where the sphere is not at that moment rather than by pushing the
+  sphere aside or dimming it. A circle in a rectangle always leaves dark corners
+  and the descent leaves a dark half; the passages move, the globe does not.
 
   The pin is CSS sticky rather than a ScrollTrigger pin. ScrollTrigger's pin
-  works by taking the element out of flow into a spacer, which fights the
-  negative margin that puts the prose over the globe; sticky needs neither and
-  releases at the container bottom on its own, which is exactly where the
-  handover belongs. ScrollTrigger is still what reports the position.
-
-  Three layers, in paint order. The globe and its scrim are the ground. The
-  prose passes over them. The annotations sit above the prose, because they are
-  annotations on the globe and the section rules and borders scrolling past
-  would otherwise be drawn straight through them.
+  takes the element out of flow into a spacer; sticky needs neither and releases
+  at the container bottom on its own, which is where the handover belongs.
 
   Below MIN_LIVE_WIDTH none of this runs. The layout is neutralised in CSS, so
   it is correct from the first paint with no hydration branch, and the WebGL
-  scene is never mounted at all. What the reader gets instead is ordinary page
-  content, in app/page.tsx.
+  scene is never mounted at all.
 
   Nothing in here writes to React state per frame. The scroll position goes into
-  a ref that the globe reads on the gsap ticker, and the annotations are written
+  a ref that the globe reads on the gsap ticker, and the passages are written
   straight to style. Transform and opacity only.
 */
 
@@ -47,10 +42,7 @@ type Mode = 'unknown' | 'live' | 'static' | 'still'
 
 /*
   Which path this viewport gets. The viewport is an external system, so this
-  subscribes to it rather than mirroring it into state in an effect. The server
-  cannot know the width, so it renders the same markup either way and this
-  settles it on the client; the only thing it decides is whether the scene is
-  built at all, since the layout is already correct from CSS.
+  subscribes to it rather than mirroring it into state in an effect.
 */
 function subscribeToWidth(onChange: () => void) {
   window.addEventListener('resize', onChange)
@@ -74,47 +66,79 @@ function fade(el: HTMLElement | null, opacity: number, lift: number) {
 }
 
 /*
-  Fully opaque, and on the raised surface, so it reads as one of the page's own
-  cards rather than as a translucent overlay.
+  The passages, in the order they arrive, with where each one sits.
+
+  Placement is per passage and not a column, because the dark part of the frame
+  moves through the sequence. The opening line sits under the sphere's lower
+  curve. The three shell labels take three different corners as the shells
+  separate outward. The descent line sits over the unlit half of the Gulf, which
+  is the thing it is describing. The last line goes to the opposite corner from
+  the nodes it names.
+
+  `out` is null where a passage holds to the end of the sequence.
 */
-const PANEL = 'border-l-2 border-l-accent bg-surface-raised px-3 py-2'
+interface Passage {
+  key: string
+  in: [number, number]
+  out: [number, number] | null
+  at: string
+}
+
+const PASSAGES: Passage[] = [
+  { key: 'opening', in: [0.04, 0.1], out: [0.17, 0.22], at: 'bottom-16 left-12 w-[26ch]' },
+  { key: 'shell-0', in: [0.25, 0.3], out: [0.47, 0.53], at: 'top-16 left-12 w-[22ch]' },
+  {
+    key: 'shell-1',
+    in: [0.33, 0.38],
+    out: [0.47, 0.53],
+    at: 'top-16 right-12 w-[22ch] text-right',
+  },
+  {
+    key: 'shell-2',
+    in: [0.4, 0.45],
+    out: [0.47, 0.53],
+    at: 'bottom-16 right-12 w-[22ch] text-right',
+  },
+  { key: 'descent', in: [0.5, 0.56], out: null, at: 'bottom-10 right-14 w-[34ch] text-right' },
+  { key: 'nodes', in: [0.82, 0.88], out: null, at: 'bottom-10 right-14 w-[34ch] text-right' },
+]
 
 /*
-  The annotation column, in the gutter to the right of the measure. The width is
-  what is left over at MIN_LIVE_WIDTH once the measure has taken its 68
-  characters, so the column never enters the measure at any width that runs the
-  live scene. Both stacks use the same box and never hold anything at the same
-  time: the labels have cleared before the first note arrives.
+  Passages that share a position share one box and stack inside it, rather than
+  each carrying an offset measured against the height of the one below. Copy
+  edits change those heights, and a hand tuned offset would put text back over a
+  lit polygon silently. `tests/globe contrast.py` would catch it, but not
+  needing to be caught is better.
 */
-const ANNOTATIONS = 'absolute top-[26%] right-10 w-[13rem] space-y-3'
+const SLOTS = PASSAGES.reduce<{ at: string; items: Passage[] }[]>((slots, passage) => {
+  const last = slots[slots.length - 1]
+  if (last && last.at === passage.at) last.items.push(passage)
+  else slots.push({ at: passage.at, items: [passage] })
+  return slots
+}, [])
 
 export default function GlobeStage({ children }: { children: React.ReactNode }) {
   const container = useRef<HTMLDivElement>(null)
   const progress = useRef(0)
-  const labels = useRef<(HTMLLIElement | null)[]>([])
-  const note = useRef<HTMLParagraphElement>(null)
-  const nodesNote = useRef<HTMLParagraphElement>(null)
+  const passages = useRef<(HTMLDivElement | null)[]>([])
+  const overlay = useRef<HTMLDivElement>(null)
   const mode = useSyncExternalStore(subscribeToWidth, readMode, serverMode)
+  /*
+    Set once when the pin releases and cleared once when the reader comes back
+    above it. It stays set for the whole page below the release, so scrolling
+    away to the team and back finds the globe still live rather than asleep.
+  */
+  const [handedOver, setHandedOver] = useState(false)
 
   useEffect(() => {
     if (mode === 'unknown' || mode === 'static') return
 
     const paint = (p: number) => {
-      // The three labels arrive one at a time as their shell detaches, and all
-      // three clear the frame together before the camera starts down.
-      const cleared = span(p, LABEL_CLEAR[0], LABEL_CLEAR[1])
-      LABEL_REVEAL.forEach((at, i) => {
-        const arrived = easeOut(span(p, at, at + 0.05))
-        fade(labels.current[i], arrived * (1 - cleared), (1 - arrived) * 10)
+      PASSAGES.forEach((passage, i) => {
+        const arrived = easeOut(span(p, passage.in[0], passage.in[1]))
+        const gone = passage.out ? span(p, passage.out[0], passage.out[1]) : 0
+        fade(passages.current[i], arrived * (1 - gone), (1 - arrived) * 12)
       })
-
-      // The line about the thin Gulf arrives with the descent and then holds,
-      // because it is still true once the work package nodes are up.
-      const shown = easeOut(span(p, NOTE_REVEAL[0], NOTE_REVEAL[1]))
-      fade(note.current, shown, (1 - shown) * 10)
-
-      const named = easeOut(span(p, NODES_NOTE_REVEAL[0], NODES_NOTE_REVEAL[1]))
-      fade(nodesNote.current, named, (1 - named) * 10)
     }
 
     // Capture mode holds the last frame of the argument and nothing else.
@@ -127,8 +151,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     if (calm) {
       /*
         The deliberate alternative, not a switched off version: the globe holds
-        the last stage, over Qatar with the five nodes up, and the labels and
-        the notes are all present at once. No pin, no scrub, no rotation.
+        the last stage and every passage is present at once. No pin, no scrub.
         PRODUCT.md asks for a fuller static path than this and it is still open.
       */
       progress.current = 1
@@ -147,6 +170,14 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     gsap.ticker.add(raf)
     gsap.ticker.lagSmoothing(0)
 
+    /*
+      The handover fires on the crossing, not on the scroll. onLeave is the pin
+      releasing at the bottom of the globe well and onEnterBack is coming back
+      up above it; both are called once each way. onRefresh covers arriving with
+      the page already scrolled past the release, and a resize that moves it.
+    */
+    const syncHandover = (self: ScrollTrigger) => setHandedOver(self.progress >= 1)
+
     const trigger = ScrollTrigger.create({
       trigger: container.current,
       start: 'top top',
@@ -155,6 +186,9 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         progress.current = self.progress
         paint(self.progress)
       },
+      onLeave: syncHandover,
+      onEnterBack: syncHandover,
+      onRefresh: syncHandover,
     })
 
     paint(0)
@@ -167,19 +201,55 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     }
   }, [mode])
 
+  /*
+    The passages belong to the argument and not to what comes after it. They are
+    fixed to the viewport, which is right while the globe is pinned and wrong
+    the moment it is not: left up they would ride down the page over the roadmap
+    and the team, naming shells that are long gone.
+  */
+  const shown = useRef<boolean | null>(null)
+  useEffect(() => {
+    const el = overlay.current
+    if (!el || mode !== 'live') return
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
+    const move = shown.current !== null && shown.current !== handedOver && !calm
+    shown.current = handedOver
+    gsap.to(el, {
+      opacity: handedOver ? 0 : 1,
+      duration: move ? HANDOVER_MS / 1000 : 0,
+      ease: 'power2.inOut',
+      overwrite: true,
+    })
+  }, [handedOver, mode])
+
   const capturing = mode === 'still'
+
+  /** Label and gloss for a shell, one line of prose for anything else. */
+  const body = (key: string) => {
+    if (key.startsWith('shell-')) {
+      const shell = copy.shells[Number(key.slice(6))]
+      return (
+        <>
+          <p className="font-mono text-[1rem] tracking-wide text-accent">{shell.label}</p>
+          <p className="mt-2 text-[1.25rem] leading-snug text-ink">{shell.gloss}</p>
+        </>
+      )
+    }
+    const line =
+      key === 'opening'
+        ? copy.openingNote
+        : key === 'descent'
+          ? copy.descentNote
+          : copy.nodesNote
+    return <p className="text-[1.25rem] leading-snug text-ink">{line}</p>
+  }
 
   return (
     <div ref={container} className="relative">
       {/*
         The globe layer. Sticky, so it holds at the top of the viewport for the
         whole container and comes to rest flush with the globe well at the end.
-        Pointer events are off for the whole argument phase: the globe takes
-        hover and click at the handover, not before, and the prose scrolling
-        over it has to stay clickable.
-
-        In capture mode it covers the page instead, so the script can screenshot
-        it and get the scene on the page ground and nothing else.
+        Pointer events are off until the handover.
       */}
       <div
         aria-hidden="true"
@@ -187,80 +257,57 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         className={
           capturing
             ? 'fixed inset-0 z-50 bg-surface'
-            : 'pointer-events-none sticky top-0 h-screen w-full overflow-hidden max-[1199px]:hidden'
+            : [
+                'sticky top-0 h-screen w-full overflow-hidden max-[1199px]:hidden',
+                handedOver ? 'pointer-events-auto' : 'pointer-events-none',
+              ].join(' ')
         }
       >
         <div className="absolute inset-0">
           {mode === 'live' || capturing ? (
-            <GlobeMount progress={progress} still={capturing} />
+            <GlobeMount progress={progress} interactive={handedOver} />
           ) : null}
         </div>
-
-        {/*
-          The sphere is offset right in the canvas so the measure is never over
-          a lit polygon. This only has to hold the left column down, and it is
-          deliberately light. See --ag-globe-scrim in globals.css.
-        */}
-        {capturing ? null : (
-          <div className="absolute inset-0" style={{ background: 'var(--ag-globe-scrim)' }} />
-        )}
       </div>
 
       {/*
-        The prose, pulled back over the layer above it. The sticky element still
-        occupies its 100vh slot in flow, so without this the argument would
-        start a screen below the top of the page. Below MIN_LIVE_WIDTH there is
-        no sticky element and nothing to pull back over.
+        The runway and the well, pulled back over the globe. The sticky element
+        occupies a 100vh slot in flow, so without this the argument would start
+        a screen below where the pin does.
       */}
-      <div className={`relative -mt-[100vh] max-[1199px]:mt-0 ${capturing ? 'invisible' : ''}`}>
+      <div
+        className={`pointer-events-none relative -mt-[100vh] max-[1199px]:mt-0 ${
+          capturing ? 'invisible' : ''
+        }`}
+      >
         {children}
       </div>
 
       {/*
-        The annotations, fixed to the viewport and last in paint order so the
-        section rules and the globe well frame pass behind them rather than
-        through them. Only on the live path: below MIN_LIVE_WIDTH the same copy
-        is ordinary page content instead, so it never lands on the measure.
+        The passages, fixed to the viewport and last in paint order so the well
+        frame passes behind them rather than through them.
       */}
       {capturing ? null : (
-        <div className="pointer-events-none fixed inset-0 z-10 max-[1199px]:hidden">
-          <ul className={ANNOTATIONS}>
-            {copy.shells.map((shell, i) => (
-              <li
-                key={shell.id}
-                ref={(el) => {
-                  labels.current[i] = el
-                }}
-                style={{ opacity: 0 }}
-                className={PANEL}
-              >
-                <p className="font-mono text-[0.9rem] text-accent">{shell.label}</p>
-                <p className="mt-1 text-[0.8rem] leading-relaxed text-ink-muted">{shell.gloss}</p>
-              </li>
-            ))}
-          </ul>
-
-          <div className={ANNOTATIONS}>
-            <p
-              ref={note}
-              style={{ opacity: 0 }}
-              className={`${PANEL} text-[0.9rem] leading-relaxed`}
-            >
-              {copy.descentNote}
-            </p>
-            {/*
-              The second colour, on the globe, marking evidence this project is
-              creating rather than evidence that exists. It names the five teal
-              nodes, so it carries their colour rather than the page accent.
-            */}
-            <p
-              ref={nodesNote}
-              style={{ opacity: 0 }}
-              className="border-l-2 border-l-globe-project bg-surface-raised px-3 py-2 text-[0.9rem] leading-relaxed"
-            >
-              {copy.nodesNote}
-            </p>
-          </div>
+        <div
+          ref={overlay}
+          className="pointer-events-none fixed inset-0 z-10 max-[1199px]:hidden"
+        >
+          {SLOTS.map((slot) => (
+            <div key={slot.at} className={`absolute flex flex-col gap-6 ${slot.at}`}>
+              {slot.items.map((passage) => (
+                <div
+                  key={passage.key}
+                  ref={(el) => {
+                    passages.current[PASSAGES.indexOf(passage)] = el
+                  }}
+                  data-passage={passage.key}
+                  style={{ opacity: 0 }}
+                >
+                  {body(passage.key)}
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -39,8 +39,26 @@ export const PHASE = {
   nodes: [0.7, 1.0],
 } as const
 
+/*
+  Altitude is what decides how big the sphere is on screen, because globe.gl
+  frames by field of view: the camera sits at radius times one plus altitude and
+  a wider canvas buys empty pixels rather than reach. At altitude 2.3 the sphere
+  covered about two thirds of the viewport height and a third of its width on a
+  wide screen, which reads as a marble in a room rather than as the subject.
+
+  The sphere fills roughly nine tenths of the viewport height at OPENING and it
+  holds that altitude all the way to the descent. The camera does not back off
+  for the dissection: the shells were brought in to travel less instead, because
+  a globe that shrinks to make room for its own diagram is back to being small.
+
+    fraction of viewport height = radius / (distance * tan(fov / 2))
+    distance = radius * (1 + altitude), fov 50 degrees
+
+*/
+export const OPENING_ALTITUDE = 1.5
+
 /** Opening view. Enough of the sphere in frame that the distribution reads. */
-export const WHOLE_POSE: Pose = { lat: 18, lng: 12, altitude: 2.3 }
+export const WHOLE_POSE: Pose = { lat: 18, lng: 12, altitude: OPENING_ALTITUDE }
 
 /**
  * Doha. The descent target.
@@ -53,6 +71,30 @@ export const WHOLE_POSE: Pose = { lat: 18, lng: 12, altitude: 2.3 }
 export const QATAR_POSE: Pose = { lat: 25.28, lng: 51.52, altitude: 0.9 }
 
 /**
+ * Altitude for any point in the sequence. Held close for the whole globe and
+ * the dissection, then down to Doha.
+ *
+ * A pure function of the scroll position, which is what lets the camera find
+ * its own way back when a reader scrolls up: there is no state to restore.
+ */
+export function altitudeAt(p: number): number {
+  return lerp(
+    OPENING_ALTITUDE,
+    QATAR_POSE.altitude,
+    easeInOut(span(p, PHASE.descend[0], PHASE.descend[1])),
+  )
+}
+
+/** Latitude for any point in the sequence. Holds, then tilts north to Doha. */
+export function latitudeAt(p: number): number {
+  return lerp(
+    WHOLE_POSE.lat,
+    QATAR_POSE.lat,
+    easeInOut(span(p, PHASE.descend[0], PHASE.descend[1])),
+  )
+}
+
+/**
  * Where the polygon extrusion starts coming down. The bar heights carry the
  * count at world scale and turn into noise close in, so they flatten on the way
  * to Doha and the colour carries the count on its own from there.
@@ -60,40 +102,58 @@ export const QATAR_POSE: Pose = { lat: 25.28, lng: 51.52, altitude: 0.9 }
 export const FLATTEN_AT = 0.52
 
 /**
+ * The handover. The pin releases at the bottom of the globe well and the camera
+ * pulls back out to a whole globe, over this long, once, on the crossing.
+ *
+ * The longitude is Doha's rather than the opening view's. The reader has just
+ * been shown an empty region; pulling straight back from it, with it still in
+ * the middle, keeps the place they were looking at and reads as one movement.
+ * Going back to the opening longitude would spin the sphere half a turn and
+ * throw that away. The far side of the world costs nothing here because the
+ * globe is draggable from this point on.
+ *
+ * Latitude is a little above the equator so the populated half of the map is
+ * not squashed against the bottom of the sphere.
+ */
+export const HANDOVER_MS = 800
+export const HANDOVER_POSE: Pose = { lat: 20, lng: 51.52, altitude: OPENING_ALTITUDE }
+
+/**
  * The two shells that separate. The third shell of the argument is the globe
  * itself at radius 1.00, which never moves, so it has no entry here.
  *
- * `from` and `to` are multiples of the globe radius. The two `separate` spans
- * overlap but do not coincide: the outer shell leaves first and the middle one
- * follows, so the diagram comes apart in sequence and each label has something
- * to name when it arrives.
+ * They are translucent surfaces, not wireframes. A wireframe shell can only
+ * ever be hairlines, because WebGL caps line width at one pixel on every
+ * mainstream implementation, so no amount of opacity makes a cage read as a
+ * layer. A faintly filled sphere reads as a layer, and its silhouette against
+ * the ground is the edge.
  *
- * The shells are told apart by graticule spacing and by opacity. WebGL caps
- * line width at one pixel on every mainstream implementation, so weight has to
- * be carried by how much line there is rather than by how thick it is: the
- * outer shell is sparse and faint, the middle one closer ruled and brighter.
+ * `from` and `to` are multiples of the globe radius. They travel to 1.25 and
+ * 1.5 rather than 1.35 and 1.7 so the camera can hold its altitude through the
+ * dissection: coming apart is the point, not how far they get. The two spans
+ * overlap but do not coincide, so the outer one leaves first and each label has
+ * something to name when it arrives.
  *
  * Both start at zero opacity and fade in over the first part of their own
- * travel, so phase one is a bare sphere.
+ * travel, so phase one is a bare sphere. Both thin as they go, so what is left
+ * across the frame at the end of the dissection is close to nothing.
  */
 export const SHELLS = [
   {
     id: 'global',
     from: 1.04,
-    to: 1.7,
+    to: 1.5,
     separate: [0.2, 0.34],
-    opacityPeak: 0.3,
-    opacityEnd: 0.1,
-    graticuleStep: 30,
+    opacityPeak: 0.16,
+    opacityEnd: 0.05,
   },
   {
     id: 'regional',
     from: 1.02,
-    to: 1.35,
+    to: 1.25,
     separate: [0.29, 0.45],
-    opacityPeak: 0.48,
-    opacityEnd: 0.2,
-    graticuleStep: 15,
+    opacityPeak: 0.22,
+    opacityEnd: 0.07,
   },
 ] as const
 

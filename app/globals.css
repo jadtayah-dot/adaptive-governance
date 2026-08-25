@@ -24,18 +24,6 @@
   /* Below this opacity the accent drops under 3:1 on the surface and stops
      being perceivable. Scale polygon fill between this and 1, never from 0. */
   --ag-globe-fill-floor: 0.55;
-  /* The live scene only runs where the measure and the sphere fit side by side,
-     so the sphere is offset right in the canvas and this only has to hold the
-     left column down. It must stay light: a scrim heavy enough to carry ink
-     over a lit polygon would take the globe with it. Below MIN_LIVE_WIDTH in
-     lib/globe-sequence.ts there is no scene and no scrim. */
-  --ag-globe-scrim: linear-gradient(
-    100deg,
-    var(--ag-surface) 0%,
-    color-mix(in srgb, var(--ag-surface) 88%, transparent) 42%,
-    color-mix(in srgb, var(--ag-surface) 40%, transparent) 68%,
-    color-mix(in srgb, var(--ag-surface) 0%, transparent) 90%
-  );
 
   /* Type */
   --ag-font-heading: var(--font-newsreader), Georgia, serif;

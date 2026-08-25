@@ -40,19 +40,24 @@ function SectionLink({
 export default function Home() {
   return (
     <div className="bg-surface text-ink">
+      <Hero />
+      <Studies />
+      <Cases />
+      <Objectives />
+      <CorpusOpening />
+      <GlobeLayers />
       {/*
-        The argument. One globe, pinned behind these five sections, with the
-        prose passing over it. The container ends at the bottom of the globe
-        well, which is where the pin releases and the globe is handed over to
-        the reader. Everything after the well is ordinary page again.
+        The argument. One globe, pinned, with nothing over it but the sequence
+        naming itself. It sits inside section five, where the copy puts the
+        globe, so the eleven sections keep their order and the globe note stays
+        directly under the well the pin releases into.
+
+        The prose is above and below rather than scrolling past the sphere. A
+        globe with a column of paragraphs beside it that never refer to it reads
+        as decoration, which is what this was.
       */}
       <GlobeStage>
-        <Hero />
-        <Studies />
-        <Cases />
-        <Objectives />
-        <CorpusOpening />
-        <GlobeLayers />
+        <GlobeRunway />
         <GlobeWell />
       </GlobeStage>
       <CorpusEvidence />
@@ -76,11 +81,6 @@ function Hero() {
       <p className="mt-6 max-w-[46ch] text-[1.25rem] leading-snug text-accent">{c.subtitle}</p>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.standfirst}</p>
       <p className={`mt-10 ${LABEL} not-italic leading-relaxed`}>{c.metadata}</p>
-      {/*
-        True on both paths. Below MIN_LIVE_WIDTH there is no scroll driven
-        globe to promise, and this line does not promise one.
-      */}
-      <p className="mt-16 max-w-[46ch] text-[0.9rem] text-ink-muted">{c.globeLine}</p>
     </section>
   )
 }
@@ -168,6 +168,13 @@ function CorpusOpening() {
           <p key={p.slice(0, 32)}>{p}</p>
         ))}
       </div>
+      {/*
+        The last line before the globe itself, and it names what the globe is.
+        It was in the hero, four sections above the thing it describes. True on
+        both paths: it does not promise a scroll driven globe, because below
+        MIN_LIVE_WIDTH there is not one.
+      */}
+      <p className="mt-10 max-w-[46ch] text-[0.9rem] text-ink-muted">{c.globeLine}</p>
     </section>
   )
 }
@@ -205,6 +212,18 @@ function GlobeLayers() {
 }
 
 /*
+  The scroll the argument runs on.
+
+  The pinned globe needs a distance to be scrolled through and it no longer
+  borrows one from the prose, so it has its own: four viewport heights, one for
+  each span of the sequence. Empty by design. Below MIN_LIVE_WIDTH nothing is
+  pinned and this would be four screens of nothing, so it is not there at all.
+*/
+function GlobeRunway() {
+  return <div aria-hidden="true" className="h-[400vh] w-full max-[1199px]:hidden" />
+}
+
+/*
   Where the globe comes to rest, and what stands in for it below
   MIN_LIVE_WIDTH.
 
@@ -234,7 +253,7 @@ function GlobeWell() {
       <div
         id="globe"
         data-testid="globe-placeholder"
-        className="aspect-square w-full border border-rule min-[1200px]:aspect-auto min-[1200px]:h-screen"
+        className="aspect-square w-full border border-rule min-[1200px]:aspect-auto min-[1200px]:h-screen min-[1200px]:border-0"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

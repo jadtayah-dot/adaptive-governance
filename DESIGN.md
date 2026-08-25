@@ -50,7 +50,6 @@ The accent is a brass. It sits far from the banned purple to blue register, read
 | `--ag-globe-existing` | `#d9a441` | 8.44:1 | Evidence that exists. The corpus. Country polygons, extruded and lit by study count. |
 | `--ag-globe-project` | `#7fd0c8` | 10.63:1 | Evidence this project is creating. The five work package nodes. |
 | `--ag-globe-fill-floor` | `0.55` | | Minimum polygon fill opacity |
-| `--ag-globe-scrim` | gradient | | Carries the ground back under the measure where the prose crosses the sphere |
 
 The two globe colours were checked under simulated deuteranopia and protanopia using the Viénot dichromat transform and compared in CIE Lab. Brass against teal scores deltaE 71 in normal vision, 68 under deuteranopia and 55 under protanopia. Anything under 15 would have been a failure.
 
@@ -62,7 +61,7 @@ Colour is never the only channel separating the two categories: existing evidenc
 
 **Extrusion is a world scale device only.** The bar heights read as a count when the whole sphere is in frame and turn into walls across the map close in, so they come down to flat on the way to Doha and the fill carries the count alone from there.
 
-**The sphere is offset right in the canvas, not centred.** The prose holds the left margin and the globe moves off it. This is the whole of the contrast answer on wide screens: a scrim heavy enough to carry ink to 4.5:1 over a lit polygon would take the globe down to nothing, which defeats the point of having one. Under 900 pixels there is no room for both, so the globe drops to 0.32 opacity and reads as texture rather than as a map, and the scrim goes flat and carries the contrast on its own.
+**The sphere fills the frame and is centred.** Apparent size is set by camera altitude, because globe.gl frames by field of view and a wider canvas buys empty pixels rather than reach. At the opening altitude the sphere covers roughly nine tenths of the viewport height. There is no offset and no scrim. Both existed to keep a column of prose legible beside the globe, and no prose runs beside it any more.
 
 ## Type
 
@@ -138,24 +137,30 @@ One piece of the site moves: the globe sequence. Everything else is still, and `
 
 **Transform and opacity only.** Nothing in the sequence animates a property that costs layout or paint. On the page that means `opacity` and `translate3d`; in the scene it means mesh scale and material opacity.
 
-**The pin is CSS sticky, not a ScrollTrigger pin.** ScrollTrigger's pin lifts the element into a spacer, which fights the negative margin that puts the prose over the globe. Sticky needs neither and releases at the container bottom on its own, which is where the handover belongs. GSAP still owns the choreography; ScrollTrigger only reports the position, and Lenis and ScrollTrigger share one scroll position through `lenis.on('scroll', ScrollTrigger.update)`.
+**The argument is its own scroll, inside section five.** It is a pinned region of four viewport heights with the globe filling the frame and nothing over it but the sequence naming itself. The long form prose runs above and below as ordinary page. It was once the five prose sections scrolling past a globe held in the right margin, and it read as wallpaper: a globe with a column of paragraphs beside it that never refer to it is decoration. Sitting inside section five keeps the eleven sections in the order the copy file fixes, and keeps the globe note directly under the well.
 
-**The container runs from the top of the hero to the bottom of the globe well** in section five, and the position through it is a single value from 0 to 1. The four spans, the camera poses, the shell radii and the label timings all live in `lib/globe-sequence.ts` as plain numbers, so the choreography can be read and changed without opening a component.
+**The pin is CSS sticky, not a ScrollTrigger pin.** ScrollTrigger's pin lifts the element into a spacer; sticky needs neither and releases at the container bottom on its own, which is where the handover belongs. GSAP still owns the choreography, ScrollTrigger only reports the position, and Lenis and ScrollTrigger share one scroll position through `lenis.on('scroll', ScrollTrigger.update)`.
+
+The position through the pin is a single value from 0 to 1. The spans, the camera track and the shell radii live in `lib/globe-sequence.ts`, and the passage timings and placements in `components/GlobeStage.tsx`, as plain numbers.
 
 | Span | What happens |
 |---|---|
 | 0.00 to 0.20 | Whole. Bare sphere, slow rotation, countries raised and lit by count. |
-| 0.20 to 0.45 | Dissection. Two graticule shells separate outward, the outer leaving first. Labels arrive as each detaches. |
+| 0.20 to 0.45 | Dissection. Two translucent shells separate outward to 1.25 and 1.5, the outer leaving first. |
 | 0.45 to 0.70 | Descent. Camera to Doha at altitude 0.9. Shells fade out, extrusion goes flat. |
 | 0.70 to 1.00 | Breakout. Five work package nodes arrive around Doha in the second colour. |
 
-**Shells are told apart by graticule spacing and opacity, not by line width.** WebGL caps line width at one pixel on every mainstream implementation, so weight has to be carried by how much line there is: the outer shell is ruled every 30 degrees and drawn faint, the middle one every 15 degrees and brighter.
+**The camera holds its altitude until the descent.** It does not back off for the dissection. The shells were brought in to travel less instead, because a globe that shrinks to make room for its own diagram is back to being small. Coming apart is the point, not how far they get.
 
-**Annotations sit above the prose.** They are annotations on the globe, so the section rules and the globe well frame have to pass behind them rather than through them. On wide screens they hold the right gutter, clear of the measure; under 900 pixels there is no gutter, so they anchor to the foot of the viewport. They are opaque, on the raised surface, because a translucent panel is fine over the sphere and unreadable over prose.
+**Shells are translucent surfaces, not wireframes.** A wireframe shell can only ever be hairlines: WebGL caps line width at one pixel on every mainstream implementation, so no amount of opacity makes a cage read as a layer. Each shell is a faintly filled sphere, single sided so one pass is one layer of alpha, and its silhouette against the ground is the edge.
 
-**One instance.** The globe is mounted once, in the pinned layer. The well in section five is an empty frame it comes to rest in. The globe note stays directly under it, which PRODUCT.md marks as not optional.
+**Passages are placed where the sphere is not, at that moment.** No panel behind them, no scrim under them. A circle in a rectangle always leaves dark corners, and once the camera is over the Gulf it leaves a dark half, so the text moves through the sequence and the globe does not. Contrast is still 4.5:1 and still binding, and because placement is what meets it, `tests/globe contrast.py` reads the real rendered pixels behind every passage at both widths and fails under 4.5:1. Passages sharing a position share one box and stack inside it rather than carrying offsets tuned by hand against each other's heights.
 
-Still open: the handover at the end of the pin, and the reduced motion path, which currently holds the sequence at its last state rather than being the deliberate alternative PRODUCT.md asks for.
+**One instance.** The globe is mounted once, in the pinned layer. The well in section five is where it comes to rest, and above the live width it carries no frame: a box drawn around a sphere larger than the box only cuts across it. Below that width the well holds the still and keeps its frame.
+
+**At the handover the pin releases**, the camera returns to a whole globe over 800ms, the passages clear, and the globe becomes interactive and stays interactive for the rest of the page. Hover gives a country name and study count, and a click filters the corpus. Countries the corpus does not reach are not clickable and are not dressed as though they were: no highlight, no pointer cursor, and the tooltip says the corpus holds none.
+
+Still open: the reduced motion path, which holds the sequence at its last state rather than being the deliberate alternative PRODUCT.md asks for, and the keyboard path to the globe, which does not exist.
 
 ## Copy rules that constrain design
 

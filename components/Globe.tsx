@@ -2,23 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import GlobeGl, { type GlobeMethods } from 'react-globe.gl'
-import {
-  BufferGeometry,
-  Float32BufferAttribute,
-  LineBasicMaterial,
-  LineSegments,
-  Mesh,
-  MeshBasicMaterial,
-  SphereGeometry,
-} from 'three'
+import { Mesh, MeshBasicMaterial, SphereGeometry } from 'three'
 import gsap from 'gsap'
 import { feature } from 'topojson-client'
 import topology from 'world-atlas/countries-110m.json'
 
+import { useRouter } from 'next/navigation'
+
 import corpus from '@/content/corpus by country.json'
+import copy from '@/content/globe.json'
 import { ISO_NUMERIC_TO_ALPHA3 } from '@/lib/iso-numeric-to-alpha3'
 import {
   FLATTEN_AT,
+  HANDOVER_MS,
+  HANDOVER_POSE,
   NODE_ALTITUDE,
   NODE_COLLAR_ALTITUDE,
   NODE_COLLAR_RADIUS,
@@ -27,6 +24,7 @@ import {
   NODE_STAGGER,
   PHASE,
   QATAR_POSE,
+  altitudeAt,
   SHELLS,
   SHELL_ARRIVE,
   SUBJECT_CODE,
@@ -34,11 +32,11 @@ import {
   WHOLE_POSE,
   easeInOut,
   easeOut,
+  latitudeAt,
   lerp,
   nodeRing,
   shortestLngDelta,
   span,
-  type Pose,
 } from '@/lib/globe-sequence'
 
 /*
@@ -76,25 +74,17 @@ export interface GlobeProps {
    */
   progress: React.RefObject<number>
   /**
-   * Hover and click. Off through the argument phase, on from the handover.
-   * The polygons carry no keyboard path either way, which is the open item
-   * recorded against the globe well.
+   * Hover and click. Off through the argument phase, on from the handover and
+   * from then on, whether or not the globe is in view. The polygons carry no
+   * keyboard path either way, which is the open item recorded against the globe
+   * well: the same counts are readable and filterable in the corpus table.
    */
   interactive?: boolean
-  /**
-   * Capture mode, for the script that renders the still served below
-   * MIN_LIVE_WIDTH. The sphere is centred rather than offset, because the still
-   * is not sharing a viewport with a column of prose.
-   */
-  still?: boolean
 }
 
 const COUNTS = (corpus as { byCountry: Counts }).byCountry
 const MAX = Math.max(...Object.values(COUNTS))
 const NODE_COUNT = 5
-
-/** How far right of centre the sphere sits, as a fraction of the canvas. */
-const OFFSET_FRACTION = 0.26
 
 /** Reads a token off the document so components never carry a raw value. */
 function token(name: string, fallback: string) {
@@ -128,44 +118,6 @@ function withAlpha(hex: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-/*
-  A real graticule: parallels and meridians, at `step` degrees apart.
-
-  A wireframe sphere would have been one line, but three's wireframe draws every
-  triangle edge, diagonals included, so it reads as a geodesic dome rather than
-  as a globe being taken apart. Points come from the globe's own getCoords, so
-  the cage is on the same axis as the country polygons rather than on one this
-  file worked out for itself.
-*/
-function graticule(g: GlobeMethods, step: number) {
-  const points: number[] = []
-  const push = (lat: number, lng: number) => {
-    const { x, y, z } = g.getCoords(lat, lng, 0)
-    points.push(x, y, z)
-  }
-  // Fine enough that a parallel reads as a circle rather than as a polygon.
-  const ARC = 4
-
-  for (let lng = -180; lng < 180; lng += step) {
-    for (let lat = -90; lat < 90; lat += ARC) {
-      push(lat, lng)
-      push(Math.min(lat + ARC, 90), lng)
-    }
-  }
-
-  for (let lat = -90 + step; lat < 90; lat += step) {
-    if (Math.abs(lat) > 89) continue
-    for (let lng = -180; lng < 180; lng += ARC) {
-      push(lat, lng)
-      push(lat, lng + ARC)
-    }
-  }
-
-  const geometry = new BufferGeometry()
-  geometry.setAttribute('position', new Float32BufferAttribute(points, 3))
-  return geometry
-}
-
 function buildCountries(): { data: CountryDatum[]; unmatched: string[] } {
   const world = topology as unknown as Parameters<typeof feature>[0]
   const collection = feature(world, world.objects.countries) as {
@@ -193,9 +145,10 @@ function buildCountries(): { data: CountryDatum[]; unmatched: string[] } {
   return { data, unmatched: Object.keys(COUNTS).filter((c) => !seen.has(c)) }
 }
 
-export default function Globe({ progress, interactive = false, still = false }: GlobeProps) {
+export default function Globe({ progress, interactive = false }: GlobeProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const globe = useRef<GlobeMethods | undefined>(undefined)
+  const router = useRouter()
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [live, setLive] = useState(false)
   const [hovered, setHovered] = useState<CountryDatum | null>(null)
@@ -215,11 +168,17 @@ export default function Globe({ progress, interactive = false, still = false }: 
     [],
   )
 
-  // The pose the descent starts from. Captured on the way in rather than
+  // The longitude the descent starts from. Captured on the way in rather than
   // assumed, because the globe is still rotating when the descent begins and a
   // fixed start longitude would make the camera jump at the boundary.
-  const descentFrom = useRef<Pose | null>(null)
+  const descentFrom = useRef<number | null>(null)
   const lastApplied = useRef(-1)
+  /*
+    Past the handover the camera belongs to the reader, not to the scroll
+    position. The ticker reads this rather than the prop so that flipping it
+    does not tear down and rebuild the scene.
+  */
+  const handedOver = useRef(false)
 
   // This component never renders on the server, so the tokens are readable on
   // the first render and there is nothing to synchronise in an effect.
@@ -235,6 +194,8 @@ export default function Globe({ progress, interactive = false, still = false }: 
   )
 
   const { data, unmatched } = useMemo(() => buildCountries(), [])
+
+  const ready = size.w > 0 && size.h > 0
 
   // A country in the corpus with no polygon would otherwise vanish silently.
   useEffect(() => {
@@ -283,17 +244,22 @@ export default function Globe({ progress, interactive = false, still = false }: 
     const scene = g.scene()
     const radius = g.getGlobeRadius()
 
-    // Two graticule cages around the sphere, told apart by how closely they are
-    // ruled and by how brightly they are drawn. Both start invisible.
+    /*
+      Two translucent surfaces around the sphere. Single sided and with no depth
+      write: the camera only ever sees the near hemisphere, which covers the
+      whole disc, so one pass is one layer of alpha and the shell tints evenly
+      rather than doubling up where the two hemispheres overlap. The edge is the
+      silhouette of that disc against the ground.
+    */
     const shells = SHELLS.map((shell) => {
-      const geometry = graticule(g, shell.graticuleStep)
-      const material = new LineBasicMaterial({
+      const geometry = new SphereGeometry(radius, 48, 32)
+      const material = new MeshBasicMaterial({
         color: palette.rule,
         transparent: true,
         opacity: 0,
         depthWrite: false,
       })
-      const mesh = new LineSegments(geometry, material)
+      const mesh = new Mesh(geometry, material)
       mesh.scale.setScalar(shell.from)
       mesh.visible = false
       scene.add(mesh)
@@ -344,7 +310,7 @@ export default function Globe({ progress, interactive = false, still = false }: 
     function apply(p: number) {
       // Whole, then dissection. The sphere keeps turning through both, so the
       // shells separate off a moving globe rather than off a still one.
-      const rotating = !calm && p < PHASE.descend[0]
+      const rotating = !calm && !handedOver.current && p < PHASE.descend[0]
       controls.autoRotate = rotating
 
       const shouldFlatten = p >= FLATTEN_AT
@@ -368,43 +334,31 @@ export default function Globe({ progress, interactive = false, still = false }: 
         mesh.visible = o > 0.002
       }
 
+      // Past the handover the reader owns the camera. Nothing below this line
+      // may touch it, or the return would be fought frame by frame and a drag
+      // would spring back.
+      if (handedOver.current) return
+
+      /*
+        Latitude and altitude are pure functions of the scroll position, so the
+        camera finds its own way back when a reader scrolls up and there is no
+        state to restore. Longitude is the exception: it belongs to the rotation
+        until the descent starts, so it is read live at that boundary and
+        interpolated from there, or the sphere would jump mid turn.
+      */
+      const pose = { lat: latitudeAt(p), altitude: altitudeAt(p) }
+
       if (p < PHASE.descend[0]) {
-        /*
-          Back above the descent. The camera has to be put back, not just handed
-          to the rotation: auto rotate only turns the sphere, so without this a
-          reader who scrolls up from Doha keeps the close altitude for the rest
-          of the argument. Only latitude and altitude are restored. Longitude
-          belongs to the rotation and must not jump.
-        */
         descentFrom.current = null
-        const pov = g!.pointOfView()
-        if (
-          Math.abs(pov.lat - WHOLE_POSE.lat) > 0.01 ||
-          Math.abs(pov.altitude - WHOLE_POSE.altitude) > 0.001
-        ) {
-          g!.pointOfView({ lat: WHOLE_POSE.lat, altitude: WHOLE_POSE.altitude }, 0)
-        }
+        // No longitude: the rotation owns it, and pointOfView leaves out what
+        // it is not given.
+        g!.pointOfView(pose, 0)
       } else {
-        /*
-          Latitude and altitude come from the opening pose rather than from the
-          live camera, so the descent cannot inherit a bad state, and only the
-          longitude is read live so the sphere does not jump mid rotation.
-        */
-        if (!descentFrom.current) {
-          descentFrom.current = {
-            lat: WHOLE_POSE.lat,
-            lng: g!.pointOfView().lng,
-            altitude: WHOLE_POSE.altitude,
-          }
-        }
+        if (descentFrom.current === null) descentFrom.current = g!.pointOfView().lng
         const from = descentFrom.current
         const t = easeInOut(span(p, PHASE.descend[0], PHASE.descend[1]))
         g!.pointOfView(
-          {
-            lat: lerp(from.lat, QATAR_POSE.lat, t),
-            lng: from.lng + shortestLngDelta(from.lng, QATAR_POSE.lng) * t,
-            altitude: lerp(from.altitude, QATAR_POSE.altitude, t),
-          },
+          { ...pose, lng: from + shortestLngDelta(from, QATAR_POSE.lng) * t },
           0,
         )
       }
@@ -445,6 +399,44 @@ export default function Globe({ progress, interactive = false, still = false }: 
     }
   }, [calm, live, palette, progress])
 
+  /*
+    The handover, and the way back out of it.
+
+    This runs once on each crossing, because it is keyed on the prop and the
+    prop only changes when ScrollTrigger reports leaving or re entering the
+    pinned range. Everything scroll driven is in the ticker above and none of it
+    touches the camera while this owns it.
+  */
+  useEffect(() => {
+    const g = globe.current
+    if (!live || !g) return
+
+    handedOver.current = interactive
+    const controls = g.controls()
+    // Rotate by dragging, but no zoom: the altitude is part of the argument and
+    // a reader who zooms into a flat polygon has left the map behind.
+    controls.enabled = interactive
+    controls.autoRotate = false
+
+    if (interactive) {
+      // The bars come back with the camera. That is derived at render from the
+      // prop rather than set here, so nothing has to write state from an
+      // effect: see `flattened` below.
+      g.pointOfView(HANDOVER_POSE, calm ? 0 : HANDOVER_MS)
+      return
+    }
+
+    /*
+      Back above the release point. The camera has to be walked back rather than
+      snapped: it took HANDOVER_MS to pull out and an instant cut back in reads
+      as a fault. The descent holds one pose for everything from 0.70 up, so the
+      ticker can take over again from the end of that tween without a step.
+    */
+    if (lastApplied.current < 0) return // first run, nothing to return from
+    descentFrom.current = QATAR_POSE.lng
+    g.pointOfView(QATAR_POSE, calm ? 0 : HANDOVER_MS)
+  }, [interactive, live, calm])
+
   const capColor = useCallback(
     (obj: object) => {
       const d = obj as CountryDatum
@@ -474,14 +466,27 @@ export default function Globe({ progress, interactive = false, still = false }: 
   const strokeColor = useCallback(
     (obj: object) => {
       const d = obj as CountryDatum
-      if (hovered && hovered.id === d.id) return palette.existing
+      /*
+        The subject country keeps its own outline whatever the pointer is doing.
+        It holds zero records, so it is not clickable, and brightening it under
+        the pointer would offer a filter that does not exist.
+      */
       if (d.code === SUBJECT_CODE) {
         return withAlpha(palette.existing, SUBJECT_STROKE_OPACITY)
       }
+      // Only countries a click will actually filter light up under the pointer.
+      if (hovered && hovered.id === d.id && d.count > 0) return palette.existing
       return withAlpha(palette.rule, d.count > 0 ? 0.85 : 0.42)
     },
     [palette, hovered],
   )
+
+  /*
+    The bars are down through the descent and back up at the handover, when the
+    camera returns to world scale and they are a reading of the count again.
+    Derived rather than stored, so the handover does not have to write state.
+  */
+  const flattened = flat && !interactive
 
   const altitude = useCallback(
     (obj: object) => {
@@ -491,10 +496,10 @@ export default function Globe({ progress, interactive = false, still = false }: 
       if (d.count === 0) return 0.004
       // Close in, the bars stop being a reading of the count and become walls
       // across the map. The fill carries the count on its own from here.
-      if (flat) return 0.005
+      if (flattened) return 0.005
       return 0.008 + 0.07 * d.weight
     },
-    [flat],
+    [flattened],
   )
 
   const onHover = useCallback(
@@ -505,13 +510,25 @@ export default function Globe({ progress, interactive = false, still = false }: 
     [interactive],
   )
 
+  /*
+    A country the corpus does not reach has nothing to filter to, so it is not a
+    target. Clicking one has to do nothing rather than send the reader to an
+    empty table, and nothing above promises otherwise: no highlight under the
+    pointer, no pointer cursor, and the tooltip says the corpus holds none.
+  */
+  const clickable = useCallback(
+    (d: CountryDatum) => interactive && d.count > 0 && Boolean(d.code),
+    [interactive],
+  )
+
   const onClick = useCallback(
     (obj: object) => {
-      if (!interactive) return
       const d = obj as CountryDatum
-      if (d.code) console.log(d.code)
+      if (!clickable(d)) return
+      // The corpus reads its filters off the query string. See app/corpus.
+      router.push(`/corpus?country=${encodeURIComponent(d.code as string)}`)
     },
-    [interactive],
+    [clickable, router],
   )
 
   const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -523,31 +540,19 @@ export default function Globe({ progress, interactive = false, still = false }: 
   // it is off and the sphere is painted flat from the surface token instead.
   const sphereTexture = useMemo(() => flatTexture(palette.sphere), [palette])
 
-  const ready = size.w > 0 && size.h > 0
-
-  /*
-    The prose holds the left margin and the sphere moves off it, rather than the
-    scrim being driven up until the text passes. A scrim heavy enough to carry
-    ink to 4.5:1 over a lit polygon would take the globe down with it.
-  */
-  const offset = useMemo<[number, number]>(
-    () => (still ? [0, 0] : [Math.round(size.w * OFFSET_FRACTION), 0]),
-    [still, size.w],
-  )
-
   return (
     <div
       ref={wrap}
       onMouseMove={interactive ? onMove : undefined}
       onMouseLeave={interactive ? () => setHovered(null) : undefined}
       className="relative h-full w-full overflow-hidden"
+      style={{ cursor: hovered && clickable(hovered) ? 'pointer' : 'default' }}
     >
       {ready ? (
         <GlobeGl
           ref={globe}
           width={size.w}
           height={size.h}
-          globeOffset={offset}
           backgroundColor="rgba(0,0,0,0)"
           globeImageUrl={sphereTexture}
           showGraticules={false}
@@ -575,19 +580,28 @@ export default function Globe({ progress, interactive = false, still = false }: 
       {interactive && hovered ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute z-10 border border-rule border-l-2 border-l-accent bg-surface px-3 py-2"
+          className={`pointer-events-none absolute z-10 border border-rule border-l-2 bg-surface px-3 py-2 ${
+            // The accent edge marks a country a click will filter to. A country
+            // the corpus does not reach gets the plain rule, so the tooltip
+            // itself does not read as a control.
+            clickable(hovered) ? 'border-l-accent' : 'border-l-rule'
+          }`}
           style={{
             left: Math.min(pointer.x + 16, Math.max(0, size.w - 240)),
-            top: Math.min(pointer.y + 14, Math.max(0, size.h - 90)),
+            top: Math.min(pointer.y + 14, Math.max(0, size.h - 108)),
             maxWidth: '15rem',
           }}
         >
           <p className="text-ink">{hovered.name}</p>
-          <p className="font-mono text-[0.8rem] text-accent">
-            {hovered.count} {hovered.count === 1 ? 'record' : 'records'}
-          </p>
-          {hovered.code ? (
-            <p className="font-mono text-[0.8rem] tracking-wide text-ink-muted">{hovered.code}</p>
+          {hovered.count > 0 ? (
+            <p className="font-mono text-[0.8rem] text-accent">
+              {hovered.count} {hovered.count === 1 ? copy.tooltip.study : copy.tooltip.studies}
+            </p>
+          ) : (
+            <p className="font-mono text-[0.8rem] text-ink-muted">{copy.tooltip.empty}</p>
+          )}
+          {clickable(hovered) ? (
+            <p className="mt-1 text-[0.8rem] text-ink-muted">{copy.tooltip.filterHint}</p>
           ) : null}
         </div>
       ) : null}
