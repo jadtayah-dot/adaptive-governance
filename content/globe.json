@@ -1,0 +1,21 @@
+{
+  "shells": [
+    {
+      "id": "global",
+      "label": "global",
+      "gloss": "frameworks and transnational agendas"
+    },
+    {
+      "id": "regional",
+      "label": "regional",
+      "gloss": "Gulf and Arab region"
+    },
+    {
+      "id": "local",
+      "label": "national and local",
+      "gloss": "Qatar"
+    }
+  ],
+  "descentNote": "The region is almost entirely dark, and that is deliberate. Qatar holds zero studies and the whole Gulf holds one.",
+  "nodesNote": "Five work packages. Evidence this project is creating."
+}

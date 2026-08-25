@@ -21,7 +21,7 @@ These came from the project lead and bind every later decision.
 - Anti references: startup landing pages, consultancy sites, and anything with a purple to blue gradient.
 - The lane is institutional research, closer to a university research centre or a policy institute than to a product company.
 - WCAG 2.1 AA, binding.
-- No animation and no motion at this stage.
+- Motion only in the globe sequence, and only through transform and opacity. Nothing else on the site moves.
 
 ## Colour
 
@@ -50,12 +50,19 @@ The accent is a brass. It sits far from the banned purple to blue register, read
 | `--ag-globe-existing` | `#d9a441` | 8.44:1 | Evidence that exists. The corpus. Country polygons, extruded and lit by study count. |
 | `--ag-globe-project` | `#7fd0c8` | 10.63:1 | Evidence this project is creating. The five work package nodes. |
 | `--ag-globe-fill-floor` | `0.55` | | Minimum polygon fill opacity |
+| `--ag-globe-scrim` | gradient | | Carries the ground back under the measure where the prose crosses the sphere |
 
 The two globe colours were checked under simulated deuteranopia and protanopia using the Viénot dichromat transform and compared in CIE Lab. Brass against teal scores deltaE 71 in normal vision, 68 under deuteranopia and 55 under protanopia. Anything under 15 would have been a failure.
 
 **The opacity floor is not optional.** Below 55 percent, the accent over this surface drops under 3:1 and stops being perceivable. Polygon fill opacity must scale between 0.55 and 1, never from 0, or countries holding one or two studies will disappear from the map. Given the corpus tops out at 31 studies for the United States and 66 countries appear at all, most countries sit near the floor, so this determines whether the map reads at all.
 
 Colour is never the only channel separating the two categories: existing evidence is an extruded polygon, project evidence is a point node.
+
+**Qatar is drawn as an outline in the accent at 0.6, with no fill.** It holds zero records, so under the ordinary rules it is painted as land like any other country the corpus does not reach, and at the bottom of the descent the reader cannot find the subject of the project. Outlined and empty, it reads as present and empty rather than as absent, which is what the sequence is about. It is the one country with a rule of its own, and the code carries it as `SUBJECT_CODE` rather than as a literal.
+
+**Extrusion is a world scale device only.** The bar heights read as a count when the whole sphere is in frame and turn into walls across the map close in, so they come down to flat on the way to Doha and the fill carries the count alone from there.
+
+**The sphere is offset right in the canvas, not centred.** The prose holds the left margin and the globe moves off it. This is the whole of the contrast answer on wide screens: a scrim heavy enough to carry ink to 4.5:1 over a lit polygon would take the globe down to nothing, which defeats the point of having one. Under 900 pixels there is no room for both, so the globe drops to 0.32 opacity and reads as texture rather than as a map, and the scrim goes flat and carries the contrast on its own.
 
 ## Type
 
@@ -127,9 +134,28 @@ The roadmap dates are muted and monospace; the activity carries full ink. The da
 
 ## Motion
 
-None. No transitions, no transforms, no scroll driven effects. `globals.css` enforces this globally.
+One piece of the site moves: the globe sequence. Everything else is still, and `globals.css` keeps a blanket rule switching CSS transitions and animations off so nothing else acquires motion by accident. The sequence is driven from JavaScript, which writes inline style, so that rule does not touch it.
 
-The scroll choreography arrives later and brings its own rules, including the reduced motion path that PRODUCT.md records as a deliberate alternative rather than a switched off version.
+**Transform and opacity only.** Nothing in the sequence animates a property that costs layout or paint. On the page that means `opacity` and `translate3d`; in the scene it means mesh scale and material opacity.
+
+**The pin is CSS sticky, not a ScrollTrigger pin.** ScrollTrigger's pin lifts the element into a spacer, which fights the negative margin that puts the prose over the globe. Sticky needs neither and releases at the container bottom on its own, which is where the handover belongs. GSAP still owns the choreography; ScrollTrigger only reports the position, and Lenis and ScrollTrigger share one scroll position through `lenis.on('scroll', ScrollTrigger.update)`.
+
+**The container runs from the top of the hero to the bottom of the globe well** in section five, and the position through it is a single value from 0 to 1. The four spans, the camera poses, the shell radii and the label timings all live in `lib/globe-sequence.ts` as plain numbers, so the choreography can be read and changed without opening a component.
+
+| Span | What happens |
+|---|---|
+| 0.00 to 0.20 | Whole. Bare sphere, slow rotation, countries raised and lit by count. |
+| 0.20 to 0.45 | Dissection. Two graticule shells separate outward, the outer leaving first. Labels arrive as each detaches. |
+| 0.45 to 0.70 | Descent. Camera to Doha at altitude 0.9. Shells fade out, extrusion goes flat. |
+| 0.70 to 1.00 | Breakout. Five work package nodes arrive around Doha in the second colour. |
+
+**Shells are told apart by graticule spacing and opacity, not by line width.** WebGL caps line width at one pixel on every mainstream implementation, so weight has to be carried by how much line there is: the outer shell is ruled every 30 degrees and drawn faint, the middle one every 15 degrees and brighter.
+
+**Annotations sit above the prose.** They are annotations on the globe, so the section rules and the globe well frame have to pass behind them rather than through them. On wide screens they hold the right gutter, clear of the measure; under 900 pixels there is no gutter, so they anchor to the foot of the viewport. They are opaque, on the raised surface, because a translucent panel is fine over the sphere and unreadable over prose.
+
+**One instance.** The globe is mounted once, in the pinned layer. The well in section five is an empty frame it comes to rest in. The globe note stays directly under it, which PRODUCT.md marks as not optional.
+
+Still open: the handover at the end of the pin, and the reduced motion path, which currently holds the sequence at its last state rather than being the deliberate alternative PRODUCT.md asks for.
 
 ## Copy rules that constrain design
 

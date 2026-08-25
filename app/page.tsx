@@ -1,4 +1,4 @@
-import GlobeMount from '@/components/GlobeMount'
+import GlobeStage from '@/components/GlobeStage'
 import home from '@/content/home.json'
 
 // Every string on this page comes from content/home.json, which is a verbatim
@@ -39,11 +39,21 @@ function SectionLink({
 export default function Home() {
   return (
     <div className="bg-surface text-ink">
-      <Hero />
-      <Studies />
-      <Cases />
-      <Objectives />
-      <Corpus />
+      {/*
+        The argument. One globe, pinned behind these five sections, with the
+        prose passing over it. The container ends at the bottom of the globe
+        well, which is where the pin releases and the globe is handed over to
+        the reader. Everything after the well is ordinary page again.
+      */}
+      <GlobeStage>
+        <Hero />
+        <Studies />
+        <Cases />
+        <Objectives />
+        <CorpusOpening />
+        <GlobeWell />
+      </GlobeStage>
+      <CorpusEvidence />
       <Roadmap />
       <Outputs />
       <Events />
@@ -134,33 +144,55 @@ function Objectives() {
   )
 }
 
-function Corpus() {
+/*
+  Section five is split across the end of the pinned container. The heading and
+  the body are the last prose the globe passes behind; the well is the last
+  thing inside the container; and everything from the globe note down is outside
+  it. The split is what lets the pin release exactly at the bottom of the well
+  and keeps the note directly under the globe, which PRODUCT.md marks as not
+  optional. The id stays on the opening so the section anchor is unchanged.
+*/
+function CorpusOpening() {
   const c = home.corpus
   return (
-    <section id="corpus" className={`${SECTION} border-b border-rule`}>
+    <section id="corpus" className={`${SECTION} pb-0 md:pb-0`}>
       <h2 className={H2}>{c.heading}</h2>
       <div className={`mt-10 space-y-6 ${PROSE}`}>
         {c.body.map((p) => (
           <p key={p.slice(0, 32)}>{p}</p>
         ))}
       </div>
+    </section>
+  )
+}
 
-      {/*
-        Full viewport height globe well. Stage one: country polygons lit by
-        record count, slow rotation, hover and click. No scroll behaviour yet.
-        Still aria-hidden, and the canvas takes no focus: the same counts are
-        readable in the corpus table linked directly below. That is a holding
-        position, not a decision, and it needs revisiting before launch.
-      */}
+/*
+  Where the globe comes to rest. The box is empty by design: the globe is
+  mounted once, in the pinned layer behind the page, and the sticky layer stops
+  flush with this frame at the end of the container. No background, or it would
+  paint over the globe it is meant to frame.
+
+  Still aria-hidden, and the canvas takes no focus: the same counts are readable
+  in the corpus table linked directly below. That is a holding position, not a
+  decision, and it needs revisiting before launch.
+*/
+function GlobeWell() {
+  return (
+    <div className="mx-auto w-full max-w-5xl px-6 pt-16 md:px-10">
       <div
         id="globe"
         data-testid="globe-placeholder"
         aria-hidden="true"
-        className="mt-16 h-screen w-full border border-rule bg-surface-raised"
-      >
-        <GlobeMount />
-      </div>
+        className="h-screen w-full border border-rule"
+      />
+    </div>
+  )
+}
 
+function CorpusEvidence() {
+  const c = home.corpus
+  return (
+    <div className={`${SECTION} border-b border-rule pt-0 md:pt-0`}>
       <p className="mt-6 max-w-[68ch] text-[0.9rem] leading-relaxed text-ink-muted">
         {c.globeNote}
       </p>
@@ -180,7 +212,7 @@ function Corpus() {
           {c.recordDetailFields}
         </p>
       </div>
-    </section>
+    </div>
   )
 }
 

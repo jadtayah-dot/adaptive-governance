@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* Lenis needs html and body to stop being height constrained while it drives
+   the scroll. Its own stylesheet, imported rather than copied. */
+@import "lenis/dist/lenis.css";
 
 /*
   Tokens. See DESIGN.md. Components use these, never a raw value.
@@ -21,6 +24,17 @@
   /* Below this opacity the accent drops under 3:1 on the surface and stops
      being perceivable. Scale polygon fill between this and 1, never from 0. */
   --ag-globe-fill-floor: 0.55;
+  /* Wide screens carry the measure and the sphere side by side, so the sphere
+     is offset right in the canvas and this only has to hold the left column
+     down. It must stay light: a scrim heavy enough to carry ink over a lit
+     polygon would take the globe with it. See NARROW in components/Globe.tsx. */
+  --ag-globe-scrim: linear-gradient(
+    100deg,
+    var(--ag-surface) 0%,
+    color-mix(in srgb, var(--ag-surface) 88%, transparent) 42%,
+    color-mix(in srgb, var(--ag-surface) 40%, transparent) 68%,
+    color-mix(in srgb, var(--ag-surface) 0%, transparent) 90%
+  );
 
   /* Type */
   --ag-font-heading: var(--font-newsreader), Georgia, serif;
@@ -53,6 +67,18 @@
   --ag-portrait-filter: grayscale(1) contrast(1.05) brightness(0.98);
 }
 
+/* Under 900 there is no room for both, so the globe is texture rather than a
+   map and the scrim goes flat and carries the contrast on its own. */
+@media (max-width: 899px) {
+  :root {
+    --ag-globe-scrim: linear-gradient(
+      to right,
+      var(--ag-surface) 0%,
+      color-mix(in srgb, var(--ag-surface) 94%, transparent) 100%
+    );
+  }
+}
+
 @theme inline {
   --color-surface: var(--ag-surface);
   --color-surface-raised: var(--ag-surface-raised);
@@ -79,7 +105,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* No motion anywhere at this stage. See DESIGN.md. */
+/* No CSS motion anywhere. The globe sequence is driven from JavaScript, which
+   writes inline transform and opacity and is unaffected by this rule, so it
+   stays as a guard against transitions arriving by accident. See DESIGN.md. */
 * {
   transition: none !important;
   animation: none !important;
