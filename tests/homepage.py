@@ -36,6 +36,21 @@ NOT_RENDERED = {
 # individual labels on the form. Each part is asserted separately instead.
 SPLIT_ON_MIDDOT = {"collaborate.formFields"}
 
+def min_live_width():
+    """
+    The width at and above which the live WebGL scene runs, read out of
+    lib/globe-sequence.ts rather than repeated here, so the check and the site
+    cannot drift apart.
+    """
+    with open(os.path.join(ROOT, "lib", "globe-sequence.ts"), encoding="utf-8") as f:
+        m = re.search(r"MIN_LIVE_WIDTH\s*=\s*(\d+)", f.read())
+    if not m:
+        raise SystemExit("could not find MIN_LIVE_WIDTH in lib/globe-sequence.ts")
+    return int(m.group(1))
+
+
+MIN_LIVE_WIDTH = min_live_width()
+
 SECTION_IDS = [
     "hero",
     "studies",
@@ -66,6 +81,66 @@ def normalise(s):
     return re.sub(r"\s+", " ", s).strip()
 
 
+def check_breakpoint(browser, problems, notes):
+    """
+    Both sides of MIN_LIVE_WIDTH.
+
+    One pixel either side of it the page is a different thing: a pinned WebGL
+    scene above, a still and ordinary text below. The number lives in one place
+    and nothing else refers to it, which is exactly the kind of constant a
+    refactor moves without anyone noticing, so it is pinned here from outside.
+    """
+    for width, live in [(MIN_LIVE_WIDTH, True), (MIN_LIVE_WIDTH - 1, False)]:
+        label = f"{width}"
+        page = browser.new_page(viewport={"width": width, "height": 900})
+        try:
+            page.goto(URL)
+            page.wait_for_load_state("networkidle")
+
+            if live:
+                # The scene is dynamically imported and then has to build, so
+                # wait for it rather than reading too early and calling it dead.
+                try:
+                    page.wait_for_function(
+                        "() => document.querySelectorAll('canvas').length > 0",
+                        timeout=20000,
+                    )
+                except Exception:
+                    pass
+            else:
+                # Nothing to wait for, so give it long enough that a scene that
+                # was going to mount would have.
+                page.wait_for_timeout(4000)
+
+            canvases = page.locator("canvas").count()
+            still = page.locator('#globe img[src="/globe-still.png"]:visible').count()
+
+            if live:
+                if canvases == 0:
+                    problems.append(
+                        f"[{label}] no live scene at MIN_LIVE_WIDTH, the live path does not start here"
+                    )
+                if still != 0:
+                    problems.append(f"[{label}] the still is served at MIN_LIVE_WIDTH")
+            else:
+                if canvases != 0:
+                    problems.append(
+                        f"[{label}] {canvases} canvas element(s) one pixel below "
+                        "MIN_LIVE_WIDTH, the live scene runs too low"
+                    )
+                if still != 1:
+                    problems.append(
+                        f"[{label}] the still is not served one pixel below MIN_LIVE_WIDTH"
+                    )
+
+            notes.append(
+                f"[{label}] {'live' if live else 'static'} path: "
+                f"{canvases} canvas, {still} still"
+            )
+        finally:
+            page.close()
+
+
 def main():
     os.makedirs(SHOTS, exist_ok=True)
     with open(os.path.join(ROOT, "content", "home.json"), encoding="utf-8") as f:
@@ -91,7 +166,11 @@ def main():
                 if page.locator(f"#{sid}").count() == 0:
                     problems.append(f"[{label}] section #{sid} is missing")
 
-            # 2. the globe block is a full viewport height and empty
+            # 2. the globe block carries no text, and is the box the path it is
+            #    on expects: a viewport height well for the live scene to come
+            #    to rest in, or a square frame around the still below
+            #    MIN_LIVE_WIDTH, where the live scene does not run at all.
+            live = width >= MIN_LIVE_WIDTH
             globe = page.locator("#globe")
             if globe.count() == 0:
                 problems.append(f"[{label}] the globe block is missing")
@@ -99,13 +178,34 @@ def main():
                 box = globe.bounding_box()
                 if box is None:
                     problems.append(f"[{label}] the globe block has no box")
-                else:
+                elif live:
                     if abs(box["height"] - height) > 2:
                         problems.append(
                             f"[{label}] globe block height {box['height']:.0f} is not the viewport height {height}"
                         )
-                    if normalise(globe.inner_text()) != "":
-                        problems.append(f"[{label}] the globe block is not empty")
+                else:
+                    if abs(box["height"] - box["width"]) > 2:
+                        problems.append(
+                            f"[{label}] globe block is {box['width']:.0f} by {box['height']:.0f}, not square"
+                        )
+                if normalise(globe.inner_text()) != "":
+                    problems.append(f"[{label}] the globe block is not empty")
+
+            # 2b. exactly one path runs. The live scene must not be built below
+            #     MIN_LIVE_WIDTH, and the still must not be served above it.
+            canvases = page.locator("canvas").count()
+            still = page.locator('#globe img[src="/globe-still.png"]:visible').count()
+            if live and canvases == 0:
+                problems.append(f"[{label}] the live scene did not run")
+            if not live and canvases != 0:
+                problems.append(
+                    f"[{label}] {canvases} canvas element(s) below MIN_LIVE_WIDTH, "
+                    "the live scene must not run here"
+                )
+            if live and still != 0:
+                problems.append(f"[{label}] the still is being served above MIN_LIVE_WIDTH")
+            if not live and still != 1:
+                problems.append(f"[{label}] the still is not being served below MIN_LIVE_WIDTH")
 
             # 3. every renderable copy string is on the page
             for path, text in leaves(copy):
@@ -182,7 +282,10 @@ def main():
             shots = {
                 s_["alt"]: s_
                 for s_ in page.evaluate(
-                    """() => [...document.querySelectorAll('img[alt]')].map(el => {
+                    """// Scoped to the team section. The page carries other
+                    // images with alt text, the globe still among them, and the
+                    // uniform treatment rule below is about headshots only.
+                    () => [...document.querySelectorAll('#team img[alt]')].map(el => {
                         const r = el.getBoundingClientRect();
                         return { alt: el.alt, nw: el.naturalWidth, w: r.width, h: r.height,
                                  src: el.currentSrc || '', filter: getComputedStyle(el).filter };
@@ -268,10 +371,24 @@ def main():
             overlaps = page.evaluate(
                 """() => {
                     const sel = 'p, h1, h2, h3, dt, dd, li, label, span';
+                    // Text held at zero opacity is not on the page yet. The
+                    // globe annotations are stacked in one box and revealed one
+                    // at a time by scroll position, so their boxes overlap by
+                    // design and only one of them is ever showing.
+                    const shown = (el) => {
+                        for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+                            const s = getComputedStyle(n);
+                            if (s.visibility === 'hidden' || s.display === 'none') return false;
+                            if (Number(s.opacity) === 0) return false;
+                        }
+                        return true;
+                    };
                     const els = [...document.querySelectorAll(sel)].filter(el => {
                         if (el.querySelector(sel)) return false;          // leaf text only
                         const r = el.getBoundingClientRect();
-                        return r.width > 0 && r.height > 0 && (el.textContent || '').trim().length > 0;
+                        return r.width > 0 && r.height > 0
+                            && (el.textContent || '').trim().length > 0
+                            && shown(el);
                     });
                     const hits = [];
                     for (let i = 0; i < els.length; i++) {
@@ -315,6 +432,8 @@ def main():
             notes.append(f"[{label}] full page height {page_height}px, screenshot {shot}")
 
             page.close()
+
+        check_breakpoint(browser, problems, notes)
 
         browser.close()
 

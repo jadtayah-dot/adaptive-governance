@@ -81,23 +81,20 @@ export interface GlobeProps {
    * recorded against the globe well.
    */
   interactive?: boolean
+  /**
+   * Capture mode, for the script that renders the still served below
+   * MIN_LIVE_WIDTH. The sphere is centred rather than offset, because the still
+   * is not sharing a viewport with a column of prose.
+   */
+  still?: boolean
 }
 
 const COUNTS = (corpus as { byCountry: Counts }).byCountry
 const MAX = Math.max(...Object.values(COUNTS))
 const NODE_COUNT = 5
 
-/*
-  Below this width there is no room for a readable measure and a readable globe
-  side by side. The globe stops being a map the reader is expected to read and
-  drops to texture behind the prose, and the scrim goes flat and does the
-  contrast work instead. See --ag-globe-scrim in globals.css.
-*/
-const NARROW = 900
 /** How far right of centre the sphere sits, as a fraction of the canvas. */
 const OFFSET_FRACTION = 0.26
-/** The globe as texture rather than as a map. */
-const NARROW_OPACITY = 0.32
 
 /** Reads a token off the document so components never carry a raw value. */
 function token(name: string, fallback: string) {
@@ -196,7 +193,7 @@ function buildCountries(): { data: CountryDatum[]; unmatched: string[] } {
   return { data, unmatched: Object.keys(COUNTS).filter((c) => !seen.has(c)) }
 }
 
-export default function Globe({ progress, interactive = false }: GlobeProps) {
+export default function Globe({ progress, interactive = false, still = false }: GlobeProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const globe = useRef<GlobeMethods | undefined>(undefined)
   const [size, setSize] = useState({ w: 0, h: 0 })
@@ -527,7 +524,6 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
   const sphereTexture = useMemo(() => flatTexture(palette.sphere), [palette])
 
   const ready = size.w > 0 && size.h > 0
-  const narrow = ready && size.w < NARROW
 
   /*
     The prose holds the left margin and the sphere moves off it, rather than the
@@ -535,8 +531,8 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
     ink to 4.5:1 over a lit polygon would take the globe down with it.
   */
   const offset = useMemo<[number, number]>(
-    () => (narrow ? [0, 0] : [Math.round(size.w * OFFSET_FRACTION), 0]),
-    [narrow, size.w],
+    () => (still ? [0, 0] : [Math.round(size.w * OFFSET_FRACTION), 0]),
+    [still, size.w],
   )
 
   return (
@@ -545,7 +541,6 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
       onMouseMove={interactive ? onMove : undefined}
       onMouseLeave={interactive ? () => setHovered(null) : undefined}
       className="relative h-full w-full overflow-hidden"
-      style={{ opacity: narrow ? NARROW_OPACITY : 1 }}
     >
       {ready ? (
         <GlobeGl

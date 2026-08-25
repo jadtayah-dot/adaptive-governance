@@ -14,6 +14,23 @@ export interface Pose {
   altitude: number
 }
 
+/**
+ * The narrowest viewport that runs the live scene.
+ *
+ * The pinned sequence needs three things across the viewport at once: a 68
+ * character measure, a sphere that never sits under it, and a column for the
+ * annotations that never enters the measure. Measured at this type scale, the
+ * measure is about 800 pixels and the annotation column about 210, and the
+ * three stop fitting below roughly 1200. Under that the site serves the static
+ * path instead: a still of the last stage, and the same copy as ordinary text.
+ *
+ * PRODUCT.md sets the floor at 768. This is well above it, and deliberately:
+ * between 768 and 1200 the live scene fits only by putting something on top of
+ * something else, and a reviewer on a tablet is better served by a page that
+ * simply reads.
+ */
+export const MIN_LIVE_WIDTH = 1200
+
 /** Span boundaries. Keep these in one place: the labels are timed against them. */
 export const PHASE = {
   whole: [0.0, 0.2],

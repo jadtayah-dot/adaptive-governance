@@ -92,7 +92,11 @@ Publisher abstracts are not republished. Each record carries the team's own shor
 
 The globe is real geometry, not a picture. A sphere with country polygons from Natural Earth 110m boundary data, extruded and coloured by corpus count, joined on ISO alpha 3 code. No generated image and no heightfield, because neither knows where a country is and neither can be clicked. No photographic earth texture: a dark sphere with data driven polygons reads as an instrument.
 
-The globe sequence has four scroll stages: whole, dissection into three concentric shells labelled global, regional, and national and local, descent to Qatar, and breakout into five nodes for the five work packages. Three stated performance and access constraints bind it. Below 768 pixels wide the live WebGL scene does not run, and a static render of the final stage is served with the five nodes still tappable. Under reduced motion the sequence collapses to a deliberate static alternative rather than a degraded one. Target is under three seconds to interactive on a throttled Fast 3G connection.
+The globe sequence has four scroll stages: whole, dissection into three concentric shells labelled global, regional, and national and local, descent to Qatar, and breakout into five nodes for the five work packages. Three stated performance and access constraints bind it. The live WebGL scene does not run on small screens, and a static render of the final stage is served instead with the five nodes still tappable. Under reduced motion the sequence collapses to a deliberate static alternative rather than a degraded one. Target is under three seconds to interactive on a throttled Fast 3G connection.
+
+The floor for the live scene was set at 768 pixels and is built at 1200. The pinned sequence needs the 68 character measure, a sphere that never sits under it, and an annotation column that never enters it, and those three stop fitting across the viewport below roughly 1200 at this type scale. Between 768 and 1200 the scene fits only by putting something on top of something else, and a reviewer on a tablet is better served by a page that reads. The number is `MIN_LIVE_WIDTH` in `lib/globe-sequence.ts`, and `tests/homepage.py` asserts the live path at it and the static path one pixel below it.
+
+The still served below that width is rendered from the running scene by `scripts/globe still.py`, never drawn by hand, so the picture a narrow reader sees cannot drift from the data a wide reader sees. `npm run build` fails when the corpus has changed since the still was rendered.
 
 Approved package list, and nothing beyond it without asking: three, react-globe.gl, world-atlas, topojson-client, gsap, lenis, motion, papaparse, fuse.js, i18n-iso-countries.
 
@@ -108,7 +112,8 @@ Resolved, and settled in the copy:
 
 Undecided, and not to be invented:
 
-* A line in section five of the copy stating the 217 figure, so the funnel from 1,172 to 272 to 217 is stated rather than implied. Section twelve now states 217 in the corpus link, so section five is the only place the number is still absent.
+* A line in section five of the copy stating the 217 figure, so the funnel from 1,172 to 272 to 217 is stated rather than implied. Section twelve states 217 in the corpus link and the hero globe line now states it too, so section five is the only place the number is still absent.
+* **The shell separation is absent below 1200 and a single still cannot carry it.** The static path names the three layers as a table and shows one picture of the end state. The move the argument is built on, the globe coming apart into global, regional, and national and local, is simply not there, so a reader on a tablet is told what the layers are and never shown them. The likely answer is three stills in document order, whole, separated and descended, rather than one. It belongs with the reduced motion path, which has the same problem for the same reason and is also still open: both need a sequence expressed without scroll, not a single frame standing in for one.
 * The routes `/outputs`, `/events` and `/team`. Section twelve links to all three and none exists yet, so those three links return 404 until the routes are built.
 
 ## Brand Commitments

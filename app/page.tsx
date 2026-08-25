@@ -1,4 +1,5 @@
 import GlobeStage from '@/components/GlobeStage'
+import globe from '@/content/globe.json'
 import home from '@/content/home.json'
 
 // Every string on this page comes from content/home.json, which is a verbatim
@@ -51,6 +52,7 @@ export default function Home() {
         <Cases />
         <Objectives />
         <CorpusOpening />
+        <GlobeLayers />
         <GlobeWell />
       </GlobeStage>
       <CorpusEvidence />
@@ -74,7 +76,11 @@ function Hero() {
       <p className="mt-6 max-w-[46ch] text-[1.25rem] leading-snug text-accent">{c.subtitle}</p>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.standfirst}</p>
       <p className={`mt-10 ${LABEL} not-italic leading-relaxed`}>{c.metadata}</p>
-      <p className="mt-16 max-w-[46ch] text-[0.9rem] text-ink-muted">{c.scrollCue}</p>
+      {/*
+        True on both paths. Below MIN_LIVE_WIDTH there is no scroll driven
+        globe to promise, and this line does not promise one.
+      */}
+      <p className="mt-16 max-w-[46ch] text-[0.9rem] text-ink-muted">{c.globeLine}</p>
     </section>
   )
 }
@@ -167,24 +173,78 @@ function CorpusOpening() {
 }
 
 /*
-  Where the globe comes to rest. The box is empty by design: the globe is
-  mounted once, in the pinned layer behind the page, and the sticky layer stops
-  flush with this frame at the end of the container. No background, or it would
-  paint over the globe it is meant to frame.
+  The three layers of the argument, as ordinary page content.
 
-  Still aria-hidden, and the canvas takes no focus: the same counts are readable
+  Below MIN_LIVE_WIDTH the live scene does not run, so there is no exploded
+  diagram to annotate and no overlay to annotate it with. The same copy appears
+  here instead, in document order, ahead of the still it describes. On the live
+  path this is hidden and the annotations arrive over the globe as each shell
+  detaches.
+*/
+function GlobeLayers() {
+  const c = globe
+  return (
+    <div className="mx-auto w-full max-w-5xl px-6 pt-16 md:px-10 min-[1200px]:hidden">
+      <dl className="grid border-t border-l border-rule sm:grid-cols-3">
+        {c.shells.map((shell) => (
+          <div key={shell.id} className="border-r border-b border-rule bg-surface-raised p-6">
+            <dt className="font-mono text-[0.9rem] text-accent">{shell.label}</dt>
+            <dd className="mt-2 text-[0.9rem] leading-relaxed text-ink-muted">{shell.gloss}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className={`mt-10 border-l-2 border-l-accent pl-4 leading-relaxed ${PROSE}`}>
+        {c.descentNote}
+      </p>
+      {/* The second colour, marking evidence this project is creating. */}
+      <p className={`mt-4 border-l-2 border-l-globe-project pl-4 leading-relaxed ${PROSE}`}>
+        {c.nodesNote}
+      </p>
+    </div>
+  )
+}
+
+/*
+  Where the globe comes to rest, and what stands in for it below
+  MIN_LIVE_WIDTH.
+
+  On the live path the box is empty by design: the globe is mounted once, in the
+  pinned layer behind the page, and the sticky layer stops flush with this frame
+  at the end of the container. No background, or it would paint over the globe
+  it is meant to frame.
+
+  Below that width the frame holds a still of the last stage of the argument.
+  The file is rendered from the running scene by `scripts/globe still.py`, not
+  drawn by hand, so it cannot drift from the corpus. Regenerate it whenever the
+  corpus or the globe changes.
+
+  The canvas still takes no focus on the live path: the same counts are readable
   in the corpus table linked directly below. That is a holding position, not a
   decision, and it needs revisiting before launch.
 */
 function GlobeWell() {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 pt-16 md:px-10">
+      {/*
+        A viewport height well on the live path, because that is the box the
+        pinned layer comes to rest in. On the static path it is square, to the
+        still it holds: a viewport height frame around a square image on a phone
+        is mostly empty frame.
+      */}
       <div
         id="globe"
         data-testid="globe-placeholder"
-        aria-hidden="true"
-        className="h-screen w-full border border-rule"
-      />
+        className="aspect-square w-full border border-rule min-[1200px]:aspect-auto min-[1200px]:h-screen"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/globe-still.png"
+          alt={globe.stillAlt}
+          width={880}
+          height={880}
+          className="h-full w-full object-contain min-[1200px]:hidden"
+        />
+      </div>
     </div>
   )
 }

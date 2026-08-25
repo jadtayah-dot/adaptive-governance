@@ -24,9 +24,9 @@ A two year research programme at the College of Public Policy, Hamad Bin Khalifa
 
 Hamad Bin Khalifa University Signature Research Grant · July 2025 to July 2027 · Project Lead Dr. Evren Tok
 
-**Scroll cue**
+**Globe line**
 
-The globe below is built from the project corpus. Scroll to open it.
+The globe is built from the project corpus, 217 studies from the systematic review.
 
 ---
 
