@@ -46,3 +46,6 @@ next-env.d.ts
 # machine local, not project state
 .impeccable/config.local.json
 .claude/settings.local.json
+
+# playwright mcp snapshots and console logs
+.playwright-mcp/
