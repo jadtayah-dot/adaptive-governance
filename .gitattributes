@@ -1,0 +1,19 @@
+# The data files are hashed by "scripts/check globe still.mjs" to decide whether
+# the globe still is out of date. git hands files out with CRLF on a machine
+# configured for Windows and LF everywhere else, so without this the same commit
+# hashes differently depending on who cloned it. The check normalises line
+# endings as well, so this is the second of two locks rather than the only one.
+*.json text eol=lf
+*.csv  text eol=lf
+*.md   text eol=lf
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.mjs  text eol=lf
+*.py   text eol=lf
+*.css  text eol=lf
+
+# Binary, so git must not touch it at all.
+*.png  binary
+*.webp binary
+*.ico  binary
+*.xlsx binary

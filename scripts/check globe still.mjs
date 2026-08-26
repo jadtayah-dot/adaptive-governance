@@ -25,8 +25,18 @@ const STAMP = join(ROOT, 'scripts', 'globe still.stamp.json')
 const STILL = join(ROOT, 'public', 'globe-still.png')
 const REGENERATE = 'npm run dev, then: python "scripts/globe still.py"'
 
+/*
+  Hashes the content, with line endings normalised first.
+
+  git checks these files out with CRLF on a machine configured for Windows and
+  with LF everywhere else, so hashing the raw bytes makes the answer depend on
+  who cloned the repository rather than on whether the corpus changed. That is
+  how this check came to fail on a fresh clone while passing in the tree it was
+  written in.
+*/
 async function sha256(path) {
-  return createHash('sha256').update(await readFile(path)).digest('hex')
+  const text = await readFile(path, 'utf8')
+  return createHash('sha256').update(text.split('\r\n').join('\n')).digest('hex')
 }
 
 function fail(lines) {

@@ -42,11 +42,19 @@ SOURCES = [
 
 
 def source_hashes():
-    """What the still was rendered from, as content hashes."""
+    """
+    What the still was rendered from, as content hashes.
+
+    Line endings are normalised first, because git hands these files out with
+    CRLF on a machine configured for Windows and LF everywhere else, and the
+    question being asked is whether the corpus changed, not who cloned it.
+    "scripts/check globe still.mjs" normalises the same way.
+    """
     out = {}
     for rel in SOURCES:
         with open(os.path.join(ROOT, rel), "rb") as f:
-            out[rel.replace("\\", "/")] = hashlib.sha256(f.read()).hexdigest()
+            data = f.read().replace(b"\r\n", b"\n")
+        out[rel.replace("\\", "/")] = hashlib.sha256(data).hexdigest()
     return out
 
 # Render square, then keep the middle of it. globe.gl frames by field of view,
