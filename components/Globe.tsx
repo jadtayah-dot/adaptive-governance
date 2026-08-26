@@ -134,6 +134,37 @@ function flatTexture(color: string) {
   return c.toDataURL('image/png')
 }
 
+/** Splits #rrggbb into components. Accepts the three digit form too. */
+function channels(hex: string): [number, number, number] {
+  const h = hex.replace('#', '')
+  const n = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  return [
+    parseInt(n.slice(0, 2), 16),
+    parseInt(n.slice(2, 4), 16),
+    parseInt(n.slice(4, 6), 16),
+  ]
+}
+
+/**
+ * Blends two colours. The fill scale is a walk between two solid colours rather
+ * than one colour at varying alpha: on a light ground a blue at low alpha is
+ * under 3:1 against the page long before it stops being visible, so alpha is
+ * the wrong axis and lightness is the right one.
+ */
+function mix(from: string, to: string, t: number) {
+  const a = channels(from)
+  const b = channels(to)
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
+  // Hex rather than an rgb() string: globe.gl parses these with a colour
+  // library that returns null for anything it does not recognise, and then
+  // reads a property off the null. A bad colour becomes a crash rather than a
+  // wrong colour, so the safest form wins.
+  const hex = a
+    .map((v, i) => clamp(v + (b[i] - v) * t).toString(16).padStart(2, '0'))
+    .join('')
+  return `#${hex}`
+}
+
 /** #rrggbb plus an alpha, as rgba, which is what globe.gl wants for a fill. */
 function withAlpha(hex: string, alpha: number) {
   const h = hex.replace('#', '')
@@ -311,11 +342,15 @@ export default function Globe({
   // the first render and there is nothing to synchronise in an effect.
   const palette = useMemo(
     () => ({
-      existing: token('--ag-globe-existing', '#d9a441'),
-      project: token('--ag-globe-project', '#7fd0c8'),
-      rule: token('--ag-rule', '#726b60'),
-      sphere: token('--ag-surface', '#12100e'),
-      floor: Number(token('--ag-globe-fill-floor', '0.55')) || 0.55,
+      existing: token('--ag-globe-existing', '#0088ce'),
+      project: token('--ag-globe-project', '#c2410c'),
+      rule: token('--ag-rule', '#767c85'),
+      // The sphere is the raised surface, not the page. On a white ground a
+      // white sphere has no silhouette and the globe stops being an object.
+      sphere: token('--ag-surface-raised', '#edeeee'),
+      fillMin: token('--ag-globe-fill-min', '#56a9dd'),
+      fillMax: token('--ag-globe-fill-max', '#004a70'),
+      land: token('--ag-globe-land', '#dcdfe1'),
     }),
     [],
   )
@@ -641,11 +676,11 @@ export default function Globe({
       if (d.code === SUBJECT_CODE) return withAlpha(palette.existing, 0)
       // A country the corpus does not reach is still land, and has to read as
       // land. The section copy calls the thin regions a finding, and a thin
-      // region that is invisible cannot be read at all. Rule colour, well under
-      // the fill floor, so it can never be mistaken for evidence.
-      if (d.count === 0) return withAlpha(palette.rule, 0.26)
-      // Never from zero. See the fill floor note in DESIGN.md.
-      return withAlpha(palette.existing, palette.floor + (1 - palette.floor) * d.weight)
+      // region that is invisible cannot be read at all. A neutral that is
+      // clearly not on the blue scale, so it can never be mistaken for evidence.
+      if (d.count === 0) return palette.land
+      // Never from the page colour. See the fill scale note in DESIGN.md.
+      return mix(palette.fillMin, palette.fillMax, d.weight)
     },
     [palette],
   )
@@ -654,8 +689,10 @@ export default function Globe({
     (obj: object) => {
       const d = obj as CountryDatum
       if (d.code === SUBJECT_CODE) return withAlpha(palette.existing, 0)
-      if (d.count === 0) return withAlpha(palette.rule, 0.16)
-      return withAlpha(palette.existing, (palette.floor + (1 - palette.floor) * d.weight) * 0.7)
+      // The sides are the shadow of the extrusion, so they run darker than the
+      // cap rather than fainter: on a light ground faint reads as further away.
+      if (d.count === 0) return mix(palette.land, palette.fillMax, 0.22)
+      return mix(mix(palette.fillMin, palette.fillMax, d.weight), palette.fillMax, 0.35)
     },
     [palette],
   )
@@ -676,7 +713,7 @@ export default function Globe({
       if (selected && d.code === selected) return palette.existing
       // Only countries a click will actually filter light up under the pointer.
       if (hovered && hovered.id === d.id && d.count > 0) return palette.existing
-      return withAlpha(palette.rule, d.count > 0 ? 0.85 : 0.42)
+      return withAlpha(palette.rule, d.count > 0 ? 0.9 : 0.5)
     },
     [palette, hovered, selected],
   )

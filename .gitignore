@@ -49,3 +49,6 @@ next-env.d.ts
 
 # playwright mcp snapshots and console logs
 .playwright-mcp/
+
+# python bytecode from the test scripts
+__pycache__/

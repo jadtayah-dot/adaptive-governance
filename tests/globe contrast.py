@@ -17,8 +17,10 @@ it to a 2D canvas and reads every pixel behind each passage box. The globe is a
 WebGL canvas without preserveDrawingBuffer, so reading the compositor output
 back is the only way to see what is actually behind the text.
 
-Reports the worst case per passage: the brightest pixel behind it and the
-contrast of the ink colour against that. Fails on anything under 4.5:1.
+Reports the worst case per passage: the pixel behind it that the ink colour
+contrasts with least, and that ratio. Which end of the range is dangerous
+depends on whether the site is light or dark, so this takes the worst over every
+pixel rather than assuming a direction. Fails on anything under 4.5:1.
 """
 
 import base64
@@ -44,7 +46,14 @@ BOXES = """() => {
     if (Number(getComputedStyle(el).opacity) < 0.5) continue;
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) continue;
-    out.push({ key: el.dataset.passage,
+    // A passage on an opaque card is read against the card, not against
+    // whatever the globe is doing behind it. Anything less than opaque and the
+    // globe is what decides, so the pixels are sampled instead.
+    const bg = getComputedStyle(el).backgroundColor;
+    const m = bg.match(/rgba?\(([^)]+)\)/);
+    const parts = m ? m[1].split(',').map(Number) : [];
+    const opaque = parts.length >= 3 && (parts.length < 4 || parts[3] >= 0.999);
+    out.push({ key: el.dataset.passage, backing: opaque ? parts.slice(0, 3) : null,
                left: r.left, top: r.top, width: r.width, height: r.height });
   }
   return out;
@@ -71,6 +80,12 @@ SAMPLE = """async ([shot, boxes]) => {
 
   const out = [];
   for (const b of boxes) {
+    if (b.backing) {
+      const l = lum(b.backing[0], b.backing[1], b.backing[2]);
+      const ratio = (Math.max(inkLum, l) + 0.05) / (Math.min(inkLum, l) + 0.05);
+      out.push({ key: b.key, ratio: Number(ratio.toFixed(2)), behind: b.backing, on: 'card' });
+      continue;
+    }
     // A little margin, because a glyph sitting one pixel outside the box would
     // still be read against whatever is there.
     const pad = 4;
@@ -80,13 +95,19 @@ SAMPLE = """async ([shot, boxes]) => {
     const h = Math.min(cv.height - y0, Math.ceil((b.height + pad * 2) * dpr));
     if (w < 1 || h < 1) continue;
     const d = ctx.getImageData(x0, y0, w, h).data;
-    let worst = 0, at = null;
+    /*
+      The worst ratio over every pixel, not the brightest pixel. Which end is
+      dangerous depends on the scheme: dark text is killed by anything dark
+      behind it and light text by anything light, and this file should not have
+      to know which one the site is on today.
+    */
+    let ratio = Infinity, at = null;
     for (let i = 0; i < d.length; i += 4) {
       const l = lum(d[i], d[i + 1], d[i + 2]);
-      if (l > worst) { worst = l; at = [d[i], d[i + 1], d[i + 2]]; }
+      const r = (Math.max(inkLum, l) + 0.05) / (Math.min(inkLum, l) + 0.05);
+      if (r < ratio) { ratio = r; at = [d[i], d[i + 1], d[i + 2]]; }
     }
-    const ratio = (Math.max(inkLum, worst) + 0.05) / (Math.min(inkLum, worst) + 0.05);
-    out.push({ key: b.key, ratio: Number(ratio.toFixed(2)), behind: at });
+    out.push({ key: b.key, ratio: Number(ratio.toFixed(2)), behind: at, on: 'globe' });
   }
   return out;
 }"""
@@ -141,7 +162,8 @@ def main():
                     if r["ratio"] < 4.5:
                         worst_overall.append((w, pt, r))
                     print(
-                        f"[{w}] {pt:.2f} {flag} {r['key']:<9} {r['ratio']:>6}:1  behind rgb{tuple(r['behind'] or ())}"
+                        f"[{w}] {pt:.2f} {flag} {r['key']:<9} {r['ratio']:>6}:1  "
+                        f"on the {r.get('on', 'globe'):<5} rgb{tuple(r['behind'] or ())}"
                     )
             page.close()
         browser.close()

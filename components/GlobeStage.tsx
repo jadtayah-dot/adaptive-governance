@@ -111,6 +111,18 @@ const PASSAGES: Passage[] = [
   lit polygon silently. `tests/globe contrast.py` would catch it, but not
   needing to be caught is better.
 */
+/*
+  Passages sit on a card rather than straight on the globe.
+
+  On the dark ground they did not need one: the sphere left dark corners and a
+  dark half at the descent, so placing each passage where the sphere was not met
+  4.5:1 on its own. On a white ground with a saturated blue map filling the
+  frame there is no reliably light region left to move them to, and the measured
+  worst case was 3.38:1. Placement still decides where they go; it can no longer
+  decide whether they are legible.
+*/
+const PANEL = 'border-l-2 border-l-accent bg-surface-raised px-4 py-3'
+
 const SLOTS = PASSAGES.reduce<{ at: string; items: Passage[] }[]>((slots, passage) => {
   const last = slots[slots.length - 1]
   if (last && last.at === passage.at) last.items.push(passage)
@@ -352,6 +364,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
                   }}
                   data-passage={passage.key}
                   style={{ opacity: 0 }}
+                  className={PANEL}
                 >
                   {body(passage.key)}
                 </div>

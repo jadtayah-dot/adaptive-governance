@@ -106,7 +106,7 @@ Resolved, and settled in the copy:
 
 * Five cases, not four themes. The copy commits to five and maps them onto the five work packages.
 * The project email is flagship_horizon@hbku.edu.qa. It is in section ten of the copy and renders in the contact section.
-* No Hamad Bin Khalifa University brand pack is required and the site does not carry the university logo. The institution is named in the copy, in the hero metadata line and the footer, and that is the extent of the identity.
+* ~~No Hamad Bin Khalifa University brand pack is required and the site does not carry the university logo.~~ Reversed on 26 August 2026. The site now carries the university palette and typeface, read off hbku.edu.qa: a white ground, the university blue, and Roboto throughout. It still carries no logo, and the institution is still named in the copy. The reversal cost the dark surface that the globe was designed on, and the globe colour model was rebuilt for a light ground. See DESIGN.md.
 * Dr. Anis Brik is not an investigator on this project and is not named anywhere on the site. He was removed from the investigator list in section nine, from the case three lead line in section three, and from Dr. Tok's entry, which now reads that Dr. Tok leads work package three. Case three is led by Dr. Evren Tok alone.
 * The team count. Seven investigators named, seven stated in the section nine intro, across four Hamad Bin Khalifa University entities.
 

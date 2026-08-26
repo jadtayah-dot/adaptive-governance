@@ -1,59 +1,71 @@
 # Design
 
-The chosen system is **Editorial**, selected by the project lead on 25 August 2026 from three candidates rendered across the full homepage and the corpus table. The two rejected systems have been deleted.
+The system was **Editorial**, selected by the project lead on 25 August 2026 from three candidates. On 26 August 2026 the project lead asked for the Hamad Bin Khalifa University identity instead, so the palette and the type are now the university's and Editorial survives only in the layout, the grid and the rules.
 
 Everything below lives as CSS custom properties in [app/globals.css](app/globals.css). **Components use the tokens, never a raw value.** Fonts are loaded in [app/fonts.ts](app/fonts.ts).
 
 ## The direction
 
-A text serif sets the headings against an institutional grotesque body, on a warm near black ground. The reference is a research journal, not a product site. The serif carries the argument, the grotesque carries the evidence, and a monospace carries anything numeric so that dates and counts read as data rather than as prose.
+The university's, read off hbku.edu.qa on 26 August 2026 by loading the page and reading the computed styles, not from a brand pack. A white ground, near black text, a grey secondary, a blue, and Roboto for everything.
 
-The ground is warm rather than blue black. A blue black surface pulls toward the console and dashboard register, which is the wrong lane for a research programme and is close to the anti references.
+That replaced a deliberately different system, and the losses are worth writing down because they were not accidents. The site used a text serif for headings, an institutional grotesque for body and a monospace for anything numeric, so that dates and counts read as data rather than as prose. Roboto carries all three now, and that distinction is gone. The ground was a warm near black chosen so the globe could sit on it; it is white, and the globe's whole colour model had to be rebuilt around that.
+
+**A website is not a brand pack.** These values are evidence of what the university serves on the web today. If an actual brand standard exists it beats this, and the values here should be replaced rather than reconciled.
 
 ## Confirmed constraints
 
 These came from the project lead and bind every later decision.
 
-- Dark surface, because the globe sits on it.
-- One accent only. It must work as body text on dark and as a data fill on country polygons at varying opacity.
+- The palette and the type are the university's, taken from hbku.edu.qa.
+- One accent only. It must work as body text on white and as a data fill on country polygons.
 - A second colour used on the globe only, distinguishing evidence that exists from evidence this project is creating.
-- Inter, DM Sans, Poppins, Montserrat and Geist are rejected.
-- Anti references: startup landing pages, consultancy sites, and anything with a purple to blue gradient.
 - The lane is institutional research, closer to a university research centre or a policy institute than to a product company.
 - WCAG 2.1 AA, binding.
 - Motion only in the globe sequence, and only through transform and opacity. Nothing else on the site moves.
 
+Superseded on 26 August 2026, and kept here because a lot was built on them:
+
+- ~~Dark surface, because the globe sits on it.~~ The ground is white. This is the constraint the rest of the globe was derived from, so its removal cost the most: see the fill scale below.
+- ~~Inter, DM Sans, Poppins, Montserrat and Geist are rejected.~~ The rejection was of a register, and Roboto sits squarely in it. The university's identity outranked the register.
+- ~~Anti references: startup landing pages, consultancy sites, and anything with a purple to blue gradient.~~ The accent is now a blue. It is the university's blue, flat, with no gradient anywhere.
+
 ## Colour
 
-Every value was checked with the WCAG contrast formula against both the base and the raised surface before being committed. Ratios are recorded so a later change can be checked the same way.
+Every value is checked by `tests/palette.py`, which reads the tokens out of `globals.css` and recomputes these ratios. The numbers below are what it prints.
 
 | Token | Value | On surface | On raised | Use |
 |---|---|---|---|---|
-| `--ag-surface` | `#12100e` | | | Page ground |
-| `--ag-surface-raised` | `#1b1815` | | | Cards, the globe well, grid cells |
-| `--ag-ink` | `#ece7df` | 15.42:1 | 14.36:1 | Body and headings |
-| `--ag-ink-muted` | `#a8a096` | 7.35:1 | 6.85:1 | Metadata, labels, roadmap dates |
-| `--ag-accent` | `#d9a441` | 8.44:1 | 7.86:1 | The single accent |
-| `--ag-accent-dim` | `#a87f31` | 5.19:1 | 4.84:1 | The accent held back. Still AA for text. |
-| `--ag-rule` | `#726b60` | 3.60:1 | 3.36:1 | Dividers and borders |
+| `--ag-surface` | `#ffffff` | | | Page ground. The university's. |
+| `--ag-surface-raised` | `#edeeee` | | | Cards, grid cells, and the globe's sphere |
+| `--ag-ink` | `#151515` | 18.26:1 | 15.71:1 | Body and headings |
+| `--ag-ink-muted` | `#515966` | 7.07:1 | 6.08:1 | Metadata, labels, roadmap dates |
+| `--ag-accent` | `#00699e` | 5.98:1 | 5.14:1 | The single accent |
+| `--ag-accent-dim` | `#0088ce` | 3.88:1 | 3.34:1 | The university's own blue. Non text only. |
+| `--ag-rule` | `#767c85` | 4.21:1 | 3.62:1 | Dividers and borders |
 
-The accent is a brass. It sits far from the banned purple to blue register, reads as an instrument colour rather than a brand colour, and holds up when dropped in opacity over a dark sphere, which is what the globe asks of it.
+**The university's blue cannot carry body text.** `#0088ce` reaches 3.88:1 on white, under the 4.5:1 this project holds itself to, so it is not the accent. The accent is that blue darkened until it clears on both surfaces, and `#0088ce` is kept as the dim for anything the 3:1 non text rule covers: borders, large text, and the globe's own fill scale.
 
-`--ag-rule` is set above 3:1 on both surfaces so dividers meet the non text contrast requirement of WCAG 1.4.11 where they separate content rather than decorate it.
+Note that the relationship inverted with the ground. On the old dark surface the dim was darker than the accent; on white it is lighter. The names stayed, because renaming would have rippled through every component for nothing.
 
-`--ag-accent-dim` clears 4.5:1 on both surfaces, so it may carry text where the full accent would be too loud.
+`--ag-rule` is set above 3:1 on both surfaces so dividers meet WCAG 1.4.11 where they separate content rather than decorate it.
 
 ## The globe
 
 | Token | Value | On surface | Meaning |
 |---|---|---|---|
-| `--ag-globe-existing` | `#d9a441` | 8.44:1 | Evidence that exists. The corpus. Country polygons, extruded and lit by study count. |
-| `--ag-globe-project` | `#7fd0c8` | 10.63:1 | Evidence this project is creating. The five work package nodes. |
-| `--ag-globe-fill-floor` | `0.55` | | Minimum polygon fill opacity |
+| `--ag-globe-existing` | `#0088ce` | 3.88:1 | Evidence that exists. The corpus. |
+| `--ag-globe-project` | `#c2410c` | 5.18:1 | Evidence this project is creating. The five work package nodes. |
+| `--ag-globe-fill-min` | `#1f93d8` | 3.37:1 | One study. The thinnest a country may be drawn. |
+| `--ag-globe-fill-max` | `#004a70` | 9.49:1 | Thirty one studies, which is the corpus maximum. |
+| `--ag-globe-land` | `#8e949d` | 3.06:1 | Land the corpus does not reach. |
 
-The two globe colours were checked under simulated deuteranopia and protanopia using the Viénot dichromat transform and compared in CIE Lab. Brass against teal scores deltaE 71 in normal vision, 68 under deuteranopia and 55 under protanopia. Anything under 15 would have been a failure.
+The two globe colours are checked under simulated deuteranopia and protanopia using the Viénot dichromat transform and compared in CIE Lab. Blue against rust scores deltaE 113 in normal vision, 113 under deuteranopia and 88 under protanopia. Anything under 15 would be a failure. Blue against orange is the most robust pair there is for a dichromat, which is the one thing the move to a blue accent made easier.
 
-**The opacity floor is not optional.** Below 55 percent, the accent over this surface drops under 3:1 and stops being perceivable. Polygon fill opacity must scale between 0.55 and 1, never from 0, or countries holding one or two studies will disappear from the map. Given the corpus tops out at 31 studies for the United States and 66 countries appear at all, most countries sit near the floor, so this determines whether the map reads at all.
+**The fill is a walk between two colours, not one colour at varying opacity.** That is the piece the white ground broke. On the old dark surface a brass at 55 percent alpha was the floor below which it dropped under 3:1, and the scale ran from there to solid. On white, a blue at low alpha goes under 3:1 against the page long before it stops being visible, so alpha is the wrong axis. Every country the corpus reaches is drawn somewhere between `--ag-globe-fill-min` and `--ag-globe-fill-max`, both of which clear 3:1 against the page, and the scale is lightness rather than transparency.
+
+**The direction of the scale inverted too.** On the dark ground more studies meant brighter. On white more studies means darker, and land the corpus does not reach is the lightest thing on the map after the sphere itself. Given the corpus tops out at 31 for the United States and 66 countries appear at all, most countries sit near the light end, so this is what decides whether the map reads.
+
+**The sphere is `--ag-surface-raised`, not the page colour.** A white sphere on a white page has no silhouette and stops being an object. It is a low contrast edge even so, 1.16:1 against the page, which is the cost of a light ground and cannot be fixed without darkening either the sphere or the page.
 
 Colour is never the only channel separating the two categories: existing evidence is an extruded polygon, project evidence is a point node.
 
@@ -67,13 +79,15 @@ Colour is never the only channel separating the two categories: existing evidenc
 
 | Token | Family | Use |
 |---|---|---|
-| `--ag-font-heading` | Newsreader | h1, h2, h3 |
-| `--ag-font-body` | Public Sans | Everything else |
-| `--ag-font-mono` | IBM Plex Mono | Dates, counts, field labels, metadata lines |
+| `--ag-font-heading` | Roboto | h1, h2, h3 |
+| `--ag-font-body` | Roboto | Everything else |
+| `--ag-font-mono` | Roboto | Dates, counts, field labels, metadata lines |
 
-Newsreader is a text serif rather than a display serif, so it holds at section heading sizes without turning decorative. Public Sans is an institutional grotesque with a wide enough range to carry long prose. IBM Plex Mono marks anything the reader should treat as data.
+Roboto is what hbku.edu.qa serves, at 300, 400, 500 and 700. It is under the Apache licence, so `next/font/google` self hosts it and nothing is loaded from a third party or bought.
 
-The heading rule lives inside `@layer base` so an explicit utility such as `font-mono` still wins. Without that, the roadmap dates render in the serif.
+**All three tokens point at the same family, and that is a real loss.** The three were a serif for the argument, a grotesque for the evidence and a monospace for anything numeric, so that dates, counts and field labels read as data rather than as prose. The tokens are kept pointing at one family rather than collapsed into a single token, so restoring the distinction later is a change to this file rather than to every component.
+
+Weight carries what the families used to: headings are 700, body is 400, and the metadata lines that were monospace are held at `--ag-text-xs` or `--ag-text-sm` in `--ag-ink-muted`. Numerals no longer align in a column, which is visible in the country index beside the globe.
 
 Scale, in `rem`, on a 1.25 ratio from a 1rem base:
 
@@ -89,7 +103,7 @@ Scale, in `rem`, on a 1.25 ratio from a 1rem base:
 
 Body leading is 1.65. Measure is capped at `--ag-measure`, 68 characters, on every run of prose.
 
-Headings are weight 600 with `-0.01em` tracking.
+Headings are weight 700 with `-0.01em` tracking.
 
 **No text transform anywhere.** Uppercasing alters the copy as displayed, and the hero metadata line and the team labels carry people's names and titles.
 
@@ -168,6 +182,6 @@ All user facing prose lives in content files. `content/home.json` is a verbatim 
 
 ## Still open
 
-- The Hamad Bin Khalifa University identity, which waits on the brand pack. Nothing here anticipates it.
+- Whether an actual Hamad Bin Khalifa University brand pack exists. The palette and type here were read off the live site, which is evidence of the web presence and not a standard.
 - Vertical rhythm. The homepage runs to roughly 12,800 pixels at 1440 and 18,300 at 390, which is a long scroll for a reviewer.
 - Component patterns beyond what the eleven homepage sections and the corpus table needed.

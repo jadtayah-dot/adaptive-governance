@@ -1,31 +1,21 @@
-// The chosen system: Editorial. See DESIGN.md.
-// Newsreader for headings, Public Sans for body, IBM Plex Mono for anything
-// numeric or metadata. None of Inter, DM Sans, Poppins, Montserrat or Geist.
+// Roboto, which is what hbku.edu.qa serves for headings, body and everything
+// else. See DESIGN.md. It replaces the three voice system the site had before,
+// Newsreader for headings, Public Sans for body and IBM Plex Mono for anything
+// numeric, and that flattening is deliberate rather than accidental: matching
+// the university is worth more here than the register the three voices carried.
+//
+// Roboto is under the Apache licence, so next/font/google self hosts it and
+// nothing has to be bought or loaded from a third party.
 
-import { Newsreader, Public_Sans, IBM_Plex_Mono } from 'next/font/google'
+import { Roboto } from 'next/font/google'
 
-export const newsreader = Newsreader({
-  variable: '--font-newsreader',
+export const roboto = Roboto({
+  variable: '--font-roboto',
   subsets: ['latin'],
-  weight: ['400', '500', '600'],
+  // 300 and 500 are what the university site uses for its lighter and medium
+  // weights. 700 carries the headings.
+  weight: ['300', '400', '500', '700'],
   display: 'swap',
 })
 
-export const publicSans = Public_Sans({
-  variable: '--font-public-sans',
-  subsets: ['latin'],
-  display: 'swap',
-})
-
-export const plexMono = IBM_Plex_Mono({
-  variable: '--font-plex-mono',
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  display: 'swap',
-})
-
-export const fontVariables = [
-  newsreader.variable,
-  publicSans.variable,
-  plexMono.variable,
-].join(' ')
+export const fontVariables = roboto.variable

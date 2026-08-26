@@ -5,31 +5,48 @@
 
 /*
   Tokens. See DESIGN.md. Components use these, never a raw value.
-  Every colour was checked with the WCAG contrast formula, and the accent and
-  globe pair was checked under simulated deuteranopia and protanopia.
+  Every value is checked by tests/palette.py, which reads this file: contrast
+  against both surfaces with the WCAG formula, and the two globe colours under
+  simulated deuteranopia and protanopia.
+
+  The palette is Hamad Bin Khalifa University's, read off hbku.edu.qa: a white
+  ground, near black text, a grey secondary and a blue.
 */
 :root {
   /* Colour */
-  --ag-surface: #12100e;
-  --ag-surface-raised: #1b1815;
-  --ag-ink: #ece7df;
-  --ag-ink-muted: #a8a096;
-  --ag-accent: #d9a441;
-  --ag-accent-dim: #a87f31;
-  --ag-rule: #726b60;
+  --ag-surface: #ffffff;
+  --ag-surface-raised: #edeeee;
+  --ag-ink: #151515;
+  --ag-ink-muted: #515966;
+  /* The university's blue is #0088ce and it reaches only 3.88:1 on white, so it
+     cannot carry body text. The accent is that blue darkened until it clears
+     4.5:1 on both surfaces; the university's own value is kept as the dim,
+     which on a light ground means lighter rather than darker. */
+  --ag-accent: #00699e;
+  --ag-accent-dim: #0088ce;
+  --ag-rule: #767c85;
 
   /* Globe only. Existing evidence against evidence this project is creating. */
-  --ag-globe-existing: #d9a441;
-  --ag-globe-project: #7fd0c8;
-  /* Below this opacity the accent drops under 3:1 on the surface and stops
-     being perceivable. Scale polygon fill between this and 1, never from 0. */
-  --ag-globe-fill-floor: 0.55;
+  --ag-globe-existing: #0088ce;
+  --ag-globe-project: #c2410c;
+  /*
+    On a light ground the fill runs from a light blue to a dark one rather than
+    from transparent to solid, because blue over white at low alpha is under 3:1
+    long before it is invisible. These are the two ends: the lighter is the
+    thinnest a country may be drawn and still be perceivable, and every country
+    the corpus reaches sits between them.
+  */
+  --ag-globe-fill-min: #1f93d8;
+  --ag-globe-fill-max: #004a70;
+  /* Land the corpus does not reach. Reads as land, never as evidence, and
+     lighter than every country that does, so the scale still runs one way. */
+  --ag-globe-land: #8e949d;
 
   /* Type */
-  --ag-font-heading: var(--font-newsreader), Georgia, serif;
-  --ag-font-body: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
-  --ag-font-mono: var(--font-plex-mono), ui-monospace, monospace;
-  --ag-heading-weight: 600;
+  --ag-font-heading: var(--font-roboto), Arial, sans-serif;
+  --ag-font-body: var(--font-roboto), Arial, sans-serif;
+  --ag-font-mono: var(--font-roboto), Arial, sans-serif;
+  --ag-heading-weight: 700;
   --ag-heading-tracking: -0.01em;
   --ag-body-leading: 1.65;
 
@@ -53,7 +70,7 @@
   --ag-measure: 68ch;
 
   /* One uniform treatment across every headshot. See DESIGN.md. */
-  --ag-portrait-filter: grayscale(1) contrast(1.05) brightness(0.98);
+  --ag-portrait-filter: grayscale(1) contrast(1.05) brightness(1.02);
 }
 
 
@@ -68,6 +85,7 @@
 
   --color-globe-existing: var(--ag-globe-existing);
   --color-globe-project: var(--ag-globe-project);
+  --color-globe-land: var(--ag-globe-land);
 
   --font-sans: var(--ag-font-body);
   --font-mono: var(--ag-font-mono);
