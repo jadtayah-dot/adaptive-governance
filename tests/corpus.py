@@ -107,6 +107,10 @@ COUNTRY_ROWS = """
       key: li.dataset.bar,
       name: sp[0].textContent.trim(),
       value: Number(sp[2].textContent.trim().split(' ')[0]),
+      // Rows below the cut stay in the DOM so the ranking can animate across
+      // it, stacked on the last visible row and taken out of the accessibility
+      // tree. They share a position, so nothing can be concluded from it.
+      hidden: li.getAttribute('aria-hidden') === 'true',
       y: t ? parseFloat(t[1]) : null,
       visible: (f ? parseFloat(f[1]) : 0) - (e ? 1 - parseFloat(e[1]) : 0) < 0
         ? 0
@@ -260,10 +264,37 @@ def main():
             problems.append("no country ranking found on the page")
         else:
             mentions = sum(r["value"] for r in country_rows)
-            notes.append(f"  country ranking {len(country_rows)} rows, {mentions} mentions")
-            order = [r["value"] for r in sorted(country_rows, key=lambda r: r["y"])]
+            visible = [r for r in country_rows if not r["hidden"]]
+            notes.append(
+                f"  country ranking {len(country_rows)} rows, {len(visible)} shown, "
+                f"{mentions} mentions"
+            )
+            order = [r["value"] for r in sorted(visible, key=lambda r: r["y"])]
             if order != sorted(order, reverse=True):
                 problems.append("the country ranking is not in descending order")
+            # Everything hidden has to be smaller than everything shown, or the
+            # cut is not a cut.
+            if visible and len(visible) < len(country_rows):
+                floor = min(r["value"] for r in visible)
+                over = [r["name"] for r in country_rows if r["hidden"] and r["value"] > floor]
+                if over:
+                    problems.append(
+                        "the ranking hides countries that outrank shown ones: "
+                        + ", ".join(over[:4])
+                    )
+            # And a hidden row must not be reachable by keyboard.
+            reachable = page.evaluate(
+                """() => {
+                    const ul = [...document.querySelectorAll('ul')].find(u => u.children.length > 40);
+                    return [...ul.children]
+                      .filter(li => li.getAttribute('aria-hidden') === 'true')
+                      .filter(li => li.querySelector('button')?.tabIndex !== -1).length;
+                }"""
+            )
+            if reachable:
+                problems.append(
+                    f"{reachable} hidden country row(s) are still in the tab order"
+                )
 
         # ------------------------------------------------------ 8 the year strip
         columns = page.evaluate(YEAR_COLUMNS)
@@ -393,7 +424,13 @@ def main():
             """
         )
         notes.append(f"  properties written on the bars: {', '.join(inline)}")
-        costly = [p for p in inline if p not in ("transform", "opacity", "background-color", "height")]
+        # background-color and height are set once from the data and never
+        # animated. pointer-events is a state, not a value on a curve: it takes
+        # the rows below the cut out of reach, and it costs neither layout nor
+        # paint. What this is guarding against is a width or a top being
+        # tweened, which is what the rule in DESIGN.md is about.
+        allowed = ("transform", "opacity", "background-color", "height", "pointer-events")
+        costly = [p for p in inline if p not in allowed]
         if costly:
             problems.append(
                 f"the bars are written with {', '.join(costly)}, which is not transform or opacity"

@@ -48,6 +48,9 @@ const SCALES = ['global', 'regional', 'transboundary', 'conceptual'] as const
 const COUNTRY_GROUP = 'country'
 const YEAR_GROUP = 'year'
 
+/** How many countries the ranking opens on, before the rest are revealed. */
+const COUNTRY_LIMIT = 15
+
 const SECTION_HEADING = 'text-[1.6rem] font-semibold tracking-tight'
 const DETAIL = 'mt-2 max-w-[68ch] text-[0.9rem] leading-relaxed text-ink-muted'
 
@@ -69,6 +72,13 @@ export default function CorpusBrowser({ records }: { records: CorpusRecord[] }) 
   const searchParams = useSearchParams()
   const [preview, setPreview] = useState<Preview>(null)
   const [tableOpen, setTableOpen] = useState(false)
+  /*
+    The ranking opens on the leading countries and reveals the rest on request.
+    The tail of ones is the argument, so it is reachable rather than removed,
+    but sixty six rows is nineteen hundred pixels before anything else on the
+    page and that buried the breakdowns.
+  */
+  const [allCountries, setAllCountries] = useState(false)
 
   const names = countryNames as Record<string, string>
   const unit = useCallback(
@@ -427,28 +437,6 @@ export default function CorpusBrowser({ records }: { records: CorpusRecord[] }) 
         </p>
       </div>
 
-      <section aria-labelledby="years-heading" className="mt-12">
-        <h2 id="years-heading" className={SECTION_HEADING}>
-          {c.years.heading}
-        </h2>
-        <p className={DETAIL}>{c.years.detail}</p>
-        <div className="mt-6 max-w-[52rem]">
-          <CorpusYears
-            columns={years.columns}
-            selected={yearSelected}
-            brush={years.brush}
-            onToggle={(key) => toggle('year', key)}
-            onPreview={setPreview}
-            unit={unit}
-            group={YEAR_GROUP}
-            tickEvery={5}
-          />
-        </div>
-        <p className="mt-8 max-w-[68ch] text-[0.9rem] leading-relaxed text-ink">
-          {c.selection.preview}
-        </p>
-      </section>
-
       <div className="mt-16 grid gap-x-12 gap-y-16 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <section aria-labelledby="ranking-heading" className="min-w-0">
           <h2 id="ranking-heading" className={SECTION_HEADING}>
@@ -469,8 +457,22 @@ export default function CorpusBrowser({ records }: { records: CorpusRecord[] }) 
               unit={unit}
               emptyLabel={c.ranking.empty}
               group={COUNTRY_GROUP}
+              limit={allCountries ? undefined : COUNTRY_LIMIT}
             />
           </div>
+
+          {countries.rows.length > COUNTRY_LIMIT ? (
+            <button
+              type="button"
+              aria-expanded={allCountries}
+              onClick={() => setAllCountries((open) => !open)}
+              className="mt-3 flex min-h-11 items-center gap-2 text-left text-[0.9rem] text-accent underline underline-offset-4"
+            >
+              {allCountries
+                ? c.ranking.showFewer
+                : c.ranking.showAll.replace('{n}', String(countries.rows.length))}
+            </button>
+          ) : null}
 
           <h3 className="mt-12 text-[1rem] font-semibold">{c.ranking.noCountryHeading}</h3>
           <p className="mt-1 max-w-[68ch] text-[0.8rem] leading-snug text-ink-muted">
@@ -514,6 +516,28 @@ export default function CorpusBrowser({ records }: { records: CorpusRecord[] }) 
           </div>
         </section>
       </div>
+
+      <section aria-labelledby="years-heading" className="mt-16">
+        <h2 id="years-heading" className={SECTION_HEADING}>
+          {c.years.heading}
+        </h2>
+        <p className={DETAIL}>{c.years.detail}</p>
+        <div className="mt-6 max-w-[52rem]">
+          <CorpusYears
+            columns={years.columns}
+            selected={yearSelected}
+            brush={years.brush}
+            onToggle={(key) => toggle('year', key)}
+            onPreview={setPreview}
+            unit={unit}
+            group={YEAR_GROUP}
+            tickEvery={5}
+          />
+        </div>
+        <p className="mt-8 max-w-[68ch] text-[0.9rem] leading-relaxed text-ink">
+          {c.selection.preview}
+        </p>
+      </section>
 
       <section aria-labelledby="table-heading" className="mt-20">
         <h2 id="table-heading" className={SECTION_HEADING}>

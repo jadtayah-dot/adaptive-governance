@@ -38,6 +38,7 @@ export default function CorpusRanking({
   unit,
   emptyLabel,
   group,
+  limit,
 }: {
   /** In resting order. This is the DOM order and it never changes. */
   rows: RankRow[]
@@ -49,28 +50,46 @@ export default function CorpusRanking({
   unit: (n: number) => string
   emptyLabel: string
   group: string
+  /**
+   * How many rows to show. Everything below the cut stays in the DOM so the
+   * ranking can animate across the cut, and is taken out of the accessibility
+   * tree and the tab order so it is not read out or reachable while hidden.
+   */
+  limit?: number
 }) {
   const container = useRef<HTMLUListElement>(null)
   const max = rows.reduce((acc, row) => Math.max(acc, row.value), 0)
+  const cut = limit ?? rows.length
+  const shown = Math.min(cut, rows.length)
 
-  const targets = useMemo(() => {
-    // Rank under the current selection. Ties fall back to the resting order, so
-    // a selection that flattens the counts does not shuffle the list.
-    const ranked = rows
+  /** Rank under the current selection, by key. */
+  const ranks = useMemo(() => {
+    // Ties fall back to the resting order, so a selection that flattens the
+    // counts does not shuffle the list.
+    const ordered = rows
       .map((row, index) => ({ row, index }))
       .sort(
         (a, b) => b.row.value - a.row.value || b.row.baseline - a.row.baseline || a.index - b.index
       )
+    return new Map(ordered.map(({ row }, rank) => [row.key, rank]))
+  }, [rows])
+
+  const targets = useMemo(() => {
     const out = new Map<string, BarState>()
-    ranked.forEach(({ row }, rank) => {
+    for (const row of rows) {
+      const rank = ranks.get(row.key)!
+      const hidden = rank >= cut
       out.set(row.key, {
-        offset: rank * ROW_HEIGHT,
+        // Rows below the cut stack on the last visible row rather than running
+        // on down the page, so nothing slides in from far away when the cut
+        // moves.
+        offset: Math.min(rank, cut) * ROW_HEIGHT,
         main: max > 0 ? row.value / max : 0,
-        opacity: row.value > 0 ? 1 : 0.4,
+        opacity: hidden ? 0 : row.value > 0 ? 1 : 0.4,
       })
-    })
+    }
     return out
-  }, [rows, max])
+  }, [rows, ranks, max, cut])
 
   useBars(container, targets, brush, 'x')
 
@@ -80,7 +99,7 @@ export default function CorpusRanking({
     <ul
       ref={container}
       className="relative w-full"
-      style={{ height: rows.length * ROW_HEIGHT }}
+      style={{ height: shown * ROW_HEIGHT }}
       onMouseLeave={() => onPreview(null)}
       onBlur={() => onPreview(null)}
     >
@@ -88,20 +107,24 @@ export default function CorpusRanking({
         const at = targets.get(row.key)!
         const resting = restingStyle(at, brush, row.key, 'x')
         const isSelected = selected.has(row.key)
+        const hidden = ranks.get(row.key)! >= cut
         return (
           <li
             key={row.key}
             data-bar={row.key}
+            aria-hidden={hidden ? true : undefined}
             className="absolute inset-x-0 top-0"
             style={{
               height: ROW_HEIGHT,
               transform: `translate3d(0, ${at.offset}px, 0)`,
               opacity: at.opacity,
+              pointerEvents: hidden ? 'none' : undefined,
             }}
           >
             <button
               type="button"
               aria-pressed={isSelected}
+              tabIndex={hidden ? -1 : undefined}
               onClick={() => onToggle(row.key)}
               onMouseEnter={() => onPreview({ group, key: row.key })}
               onFocus={() => onPreview({ group, key: row.key })}

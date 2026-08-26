@@ -15,7 +15,9 @@
     "detail": "Every country the corpus reaches, ordered by the number of studies it holds. Bar length and bar darkness carry the same count. Choose a country to hold the selection to it.",
     "noCountryHeading": "Studies set in no single country",
     "noCountryDetail": "Records the review recorded at a scale wider than one country, held here by that scale.",
-    "empty": "No country holds a study under this selection."
+    "empty": "No country holds a study under this selection.",
+    "showAll": "Show all {n} countries",
+    "showFewer": "Show the leading countries only"
   },
   "breakdowns": {
     "heading": "Four breakdowns",

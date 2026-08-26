@@ -50,7 +50,19 @@ export default function CorpusTable({
             {records.map((record) => (
               <tr
                 key={record.id}
-                className={record.id === selectedId ? 'outline outline-2 outline-accent' : ''}
+                /*
+                  The row opens the record for a pointer, and the identifier in
+                  the first cell is the same action for a keyboard. A row is not
+                  focusable and a tr cannot carry a role that would make it so
+                  without breaking the table semantics screen readers rely on,
+                  so the button stays and this is a convenience on top of it.
+                */
+                onClick={() => setSelectedId(record.id === selectedId ? null : record.id)}
+                className={
+                  record.id === selectedId
+                    ? 'cursor-pointer outline outline-2 outline-accent'
+                    : 'cursor-pointer'
+                }
               >
                 <td className={TD}>
                   {/* A bare identifier is a 7 pixel target. Held at 24 square,
@@ -60,7 +72,12 @@ export default function CorpusTable({
                     type="button"
                     aria-expanded={record.id === selectedId}
                     className="inline-flex min-h-6 min-w-6 items-center justify-center text-accent underline underline-offset-4 tabular-nums"
-                    onClick={() => setSelectedId(record.id === selectedId ? null : record.id)}
+                    onClick={(e) => {
+                      // The row handles this too, and both firing would toggle
+                      // the panel open and shut again on one click.
+                      e.stopPropagation()
+                      setSelectedId(record.id === selectedId ? null : record.id)
+                    }}
                   >
                     {record.id}
                   </button>
