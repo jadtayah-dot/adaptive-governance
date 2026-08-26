@@ -41,37 +41,39 @@ export const PHASE = {
 
 /*
   Altitude is what decides how big the sphere is on screen, because globe.gl
-  frames by field of view: the camera sits at radius times one plus altitude and
-  a wider canvas buys empty pixels rather than reach. At altitude 2.3 the sphere
-  covered about two thirds of the viewport height and a third of its width on a
-  wide screen, which reads as a marble in a room rather than as the subject.
+  frames by field of view: the camera sits at radius times one plus altitude.
 
-  The sphere runs off every edge of the viewport. It is not a sphere with
-  margins around it: no limb is in frame, and what the reader sees is a surface
-  they are close to.
-
-  That cannot be a constant, because globe.gl frames by field of view and a
-  wider canvas buys empty pixels rather than reach. A fixed altitude that fills
-  a 1440 frame leaves margins on a 1920 one. So the opening altitude is computed
-  from the canvas each time it changes, and the camera never backs off it.
+  The sphere is framed against the viewport height, so its limb is inside the
+  frame and it reads as a sphere. It has curvature, a horizon and dark ground at
+  the corners, and it still takes most of the height. An earlier version framed
+  it against the width instead, which put every edge off screen: at that
+  distance the centre of the view is magnified about seven times and what the
+  reader saw was one country, not a globe.
 
     screen diameter = canvasHeight / (distance * tan(fov / 2))
 
-  with distance in globe radii. Setting the screen diameter to VIEW_OVERFLOW
-  times the canvas width and solving for distance gives the altitude below.
+  with distance in globe radii. Setting the screen diameter to VIEW_FILL times
+  the canvas height and solving for distance drops the canvas out of it
+  entirely, so one altitude frames the sphere the same way at every size.
 */
-export const VIEW_OVERFLOW = 1.06
-/** Far enough out that the camera never ends up inside the sphere. */
-export const MIN_ALTITUDE = 0.08
+export const VIEW_FILL = 0.88
 
-export function fillingAltitude(canvasW: number, canvasH: number, fovDegrees: number): number {
-  if (canvasW <= 0 || canvasH <= 0) return MIN_ALTITUDE
-  const distance = canvasH / (VIEW_OVERFLOW * canvasW * Math.tan((fovDegrees * Math.PI) / 360))
+export function framingAltitude(fovDegrees: number): number {
+  const distance = 1 / (VIEW_FILL * Math.tan((fovDegrees * Math.PI) / 360))
   return Math.max(MIN_ALTITUDE, distance - 1)
 }
 
-/** The descent goes in from the opening altitude by this much. */
-export const DESCENT_RATIO = 0.42
+/** Far enough out that the camera never ends up inside the sphere. */
+export const MIN_ALTITUDE = 0.08
+
+/**
+ * How close the descent gets. Absolute rather than a fraction of the framing
+ * altitude: the camera pulling back for the opening must not drag the descent
+ * back with it, because being over Qatar is the whole point of that span. This
+ * is close enough that Qatar, the rest of the Gulf and Iran are the frame, which
+ * is the region the copy at that moment is talking about.
+ */
+export const DESCENT_ALTITUDE = 0.5
 
 /** Where the sequence opens. Longitude is only a starting point: it rotates. */
 export const OPENING_LAT = 18
@@ -85,8 +87,8 @@ export const OPENING_LNG = 12
 export const QATAR: { lat: number; lng: number } = { lat: 25.28, lng: 51.52 }
 
 /**
- * Altitude for any point in the sequence. Held close for the whole globe and
- * the dissection, then down to Doha.
+ * Altitude for any point in the sequence. Held at the framing altitude for the
+ * whole globe and the dissection, then down to Doha.
  *
  * A pure function of the scroll position, which is what lets the camera find
  * its own way back when a reader scrolls up: there is no state to restore.
@@ -94,7 +96,7 @@ export const QATAR: { lat: number; lng: number } = { lat: 25.28, lng: 51.52 }
 export function altitudeAt(p: number, opening: number): number {
   return lerp(
     opening,
-    opening * DESCENT_RATIO,
+    DESCENT_ALTITUDE,
     easeInOut(span(p, PHASE.descend[0], PHASE.descend[1])),
   )
 }
@@ -138,13 +140,15 @@ export const HANDOVER_LAT = 20
  * layer. A faintly filled sphere reads as a layer, and its silhouette against
  * the ground is the edge.
  *
- * `from` and `to` are multiples of the globe radius, and they are small. At an
- * altitude that puts the sphere past every edge of the frame no limb is
- * visible, so no shell silhouette is either, however far it travels. What does
- * read at that range is the shell's own graticule sliding across the surface
- * beneath it, and the parallax between them grows with even a few percent of
- * separation. So each shell is a faint fill for the layer and a graticule for
- * the movement, and they travel to 1.06 and 1.12 rather than out of frame.
+ * `from` and `to` are multiples of the globe radius. They travel to 1.25 and
+ * 1.5, which is far enough to read as separation now the camera frames the
+ * sphere against the viewport height and its limb is in the frame. They were
+ * briefly cut to 1.06 and 1.12, when the camera sat close enough that no limb
+ * was visible and therefore no shell silhouette could be either; that framing
+ * is gone and so is the reason for the small numbers.
+ *
+ * Each shell is a faint fill, which is what makes it read as a layer rather
+ * than a cage, and a graticule, which is what makes the movement legible.
  *
  * The two spans overlap but do not coincide, so the outer one leaves first and
  * each label has something to name when it arrives.
@@ -157,7 +161,7 @@ export const SHELLS = [
   {
     id: 'global',
     from: 1.04,
-    to: 1.12,
+    to: 1.5,
     separate: [0.2, 0.34],
     opacityPeak: 0.1,
     opacityEnd: 0.03,
@@ -166,7 +170,7 @@ export const SHELLS = [
   {
     id: 'regional',
     from: 1.02,
-    to: 1.06,
+    to: 1.25,
     separate: [0.29, 0.45],
     opacityPeak: 0.14,
     opacityEnd: 0.045,

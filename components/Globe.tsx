@@ -33,7 +33,7 @@ import {
   NODE_STAGGER,
   PHASE,
   QATAR,
-  DESCENT_RATIO,
+  DESCENT_ALTITUDE,
   altitudeAt,
   SHELLS,
   SHELL_ARRIVE,
@@ -41,7 +41,7 @@ import {
   SUBJECT_STROKE_OPACITY,
   easeInOut,
   easeOut,
-  fillingAltitude,
+  framingAltitude,
   latitudeAt,
   lerp,
   nodeRing,
@@ -583,9 +583,11 @@ export default function Globe({
   }, [calm, live, palette, progress])
 
   /*
-    The altitude that fills this canvas, recomputed whenever the canvas changes.
-    The field of view comes off the camera rather than being written down here,
-    so if globe.gl ever changes it the framing follows.
+    The altitude that frames the sphere against the viewport height, so its limb
+    is inside the frame. The field of view comes off the camera rather than
+    being written down here, so if globe.gl ever changes it the framing follows.
+    It does not depend on the canvas, but a resize still has to re apply the
+    pose, which is why the size is a dependency.
 
     Applied straight away as well as stored, because on the first pass the
     ticker may not run again until the reader scrolls.
@@ -594,7 +596,7 @@ export default function Globe({
     const g = globe.current
     if (!live || !g || !ready) return
     const camera = g.camera() as PerspectiveCamera
-    opening.current = fillingAltitude(size.w, size.h, camera.fov)
+    opening.current = framingAltitude(camera.fov)
     if (!handedOver.current) {
       const p = progress.current
       g.pointOfView(
@@ -671,7 +673,7 @@ export default function Globe({
     if (lastApplied.current < 0) return // first run, nothing to return from
     descentFrom.current = QATAR.lng
     g.pointOfView(
-      { ...QATAR, altitude: opening.current * DESCENT_RATIO },
+      { ...QATAR, altitude: DESCENT_ALTITUDE },
       calm ? 0 : HANDOVER_MS,
     )
   }, [interactive, live, calm])

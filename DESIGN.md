@@ -73,7 +73,11 @@ Colour is never the only channel separating the two categories: existing evidenc
 
 **Extrusion is a world scale device only.** The bar heights read as a count when the whole sphere is in frame and turn into walls across the map close in, so they come down to flat on the way to Doha and the fill carries the count alone from there.
 
-**The sphere fills the frame and is centred.** Apparent size is set by camera altitude, because globe.gl frames by field of view and a wider canvas buys empty pixels rather than reach. At the opening altitude the sphere covers roughly nine tenths of the viewport height. There is no offset and no scrim. Both existed to keep a column of prose legible beside the globe, and no prose runs beside it any more.
+**The sphere is framed against the viewport height, at `VIEW_FILL`, currently 0.88.** Its limb is inside the frame, so it has curvature, a horizon and page ground at the corners, and it still takes most of the height. Framing against the height rather than the width drops the canvas out of the arithmetic, so one altitude frames the sphere the same way at any size.
+
+It was briefly framed against the width instead, so that it ran past every edge. That put the limb off screen at every point in the sequence, and because the centre of the view is magnified about seven times at that distance, what the reader saw was a single country rather than a globe. A sphere with no visible edge is not a globe.
+
+There is no offset and no scrim. Both existed to keep a column of prose legible beside the globe, and no prose runs beside it any more.
 
 ## Type
 
@@ -160,11 +164,11 @@ The position through the pin is a single value from 0 to 1. The spans, the camer
 | Span | What happens |
 |---|---|
 | 0.00 to 0.20 | Whole. Bare sphere, slow rotation, countries raised and lit by count. |
-| 0.20 to 0.45 | Dissection. Two translucent shells separate outward to 1.25 and 1.5, the outer leaving first. |
-| 0.45 to 0.70 | Descent. Camera to Doha at altitude 0.9. Shells fade out, extrusion goes flat. |
+| 0.20 to 0.45 | Dissection. Two translucent shells separate outward to 1.25 and 1.5, the outer leaving first. Camera holds the framing altitude. |
+| 0.45 to 0.70 | Descent. Camera to Doha at `DESCENT_ALTITUDE`, currently 0.5, which is an absolute rather than a fraction of the framing altitude so the opening pulling back does not drag the descent back with it. Shells fade out, extrusion goes flat. |
 | 0.70 to 1.00 | Breakout. Five work package nodes arrive around Doha in the second colour. |
 
-**The camera holds its altitude until the descent.** It does not back off for the dissection. The shells were brought in to travel less instead, because a globe that shrinks to make room for its own diagram is back to being small. Coming apart is the point, not how far they get.
+**The camera holds its altitude until the descent.** It does not back off for the dissection, and it does not come in for it either. A globe that shrinks to make room for its own diagram is back to being small.
 
 **Shells are translucent surfaces, not wireframes.** A wireframe shell can only ever be hairlines: WebGL caps line width at one pixel on every mainstream implementation, so no amount of opacity makes a cage read as a layer. Each shell is a faintly filled sphere, single sided so one pass is one layer of alpha, and its silhouette against the ground is the edge.
 

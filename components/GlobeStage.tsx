@@ -8,7 +8,7 @@ import Lenis from 'lenis'
 import CorpusPanel from './CorpusPanel'
 import GlobeMount from './GlobeMount'
 import copy from '@/content/globe.json'
-import { HANDOVER_MS, MIN_LIVE_WIDTH, easeOut, span } from '@/lib/globe-sequence'
+import { MIN_LIVE_WIDTH, easeOut, span } from '@/lib/globe-sequence'
 
 /*
   The pinned argument. It sits inside section five, where the copy says the
@@ -147,7 +147,6 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
   const container = useRef<HTMLDivElement>(null)
   const progress = useRef(0)
   const passages = useRef<(HTMLDivElement | null)[]>([])
-  const overlay = useRef<HTMLDivElement>(null)
   const mode = useSyncExternalStore(subscribeToWidth, readMode, serverMode)
   /*
     Set once when the pin releases and cleared once when the reader comes back
@@ -264,25 +263,17 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
   }, [live])
 
   /*
-    The passages belong to the argument and not to what comes after it. They are
-    fixed to the viewport, which is right while the globe is pinned and wrong
-    the moment it is not: left up they would ride down the page over the roadmap
-    and the team, naming shells that are long gone.
+    The passages belong to the argument and not to what comes after it. Past the
+    handover none of them is mounted: the last two carry no exit of their own,
+    because they are meant to hold to the end of the sequence, so without this
+    they would ride down the page over the roadmap and the team.
+
+    Mounting is the only thing that decides whether a passage is on screen.
+    There used to be a second control, an opacity tween on the whole overlay
+    keyed on the handover, and the two disagreed depending on which ran last:
+    the overlay would be left at full opacity with the passages faded, or the
+    reverse. One gate, checked in one place.
   */
-  const shown = useRef<boolean | null>(null)
-  useEffect(() => {
-    const el = overlay.current
-    if (!el || mode !== 'live') return
-    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
-    const move = shown.current !== null && shown.current !== handedOver && !calm
-    shown.current = handedOver
-    gsap.to(el, {
-      opacity: handedOver ? 0 : 1,
-      duration: move ? HANDOVER_MS / 1000 : 0,
-      ease: 'power2.inOut',
-      overwrite: true,
-    })
-  }, [handedOver, mode])
 
   const capturing = mode === 'still'
 
@@ -388,14 +379,11 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         frame passes behind them rather than through them.
       */}
       {capturing ? null : (
-        <div
-          ref={overlay}
-          className="pointer-events-none fixed inset-0 z-10 max-[1199px]:hidden"
-        >
+        <div className="pointer-events-none fixed inset-0 z-10 max-[1199px]:hidden">
           {SLOTS.map((slot) => (
             <div key={slot.at} className={`absolute flex flex-col gap-6 ${slot.at}`}>
               {slot.items.map((passage) =>
-                !live[PASSAGES.indexOf(passage)] ? null : (
+                handedOver || !live[PASSAGES.indexOf(passage)] ? null : (
                 <div
                   key={passage.key}
                   ref={(el) => {

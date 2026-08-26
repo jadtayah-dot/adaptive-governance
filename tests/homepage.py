@@ -382,7 +382,8 @@ def main():
                         for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
                             const s = getComputedStyle(n);
                             if (s.visibility === 'hidden' || s.display === 'none') return false;
-                            if (Number(s.opacity) === 0) return false;
+                            // Not just zero: a passage caught mid fade is not readable either.
+                            if (Number(s.opacity) < 0.05) return false;
                         }
                         return true;
                     };
