@@ -143,7 +143,7 @@ def main():
         notes.append(f"  {name:<22} {t[name]:<9} {'   '.join(ratios)}")
 
     # 2. both ends of the polygon fill scale, against the page
-    for name in ("--ag-globe-fill-min", "--ag-globe-fill-max", "--ag-globe-land"):
+    for name in ("--ag-globe-fill-min", "--ag-globe-fill-max"):
         c = rgb(t[name])
         r = contrast(c, surface)
         notes.append(f"  {name:<22} {t[name]:<9} surface {r:.2f}:1")
@@ -152,6 +152,32 @@ def main():
                 f"{name} is {r:.2f}:1 on the surface, so a country drawn at that "
                 f"end of the scale is under the {NON_TEXT_MIN}:1 non text minimum"
             )
+
+    # 2b. Land the corpus does not reach is deliberately near the page, so that
+    #     lightness rather than hue separates a country holding no studies from
+    #     one holding a single study. Its fill is therefore not what has to clear
+    #     3:1; its outline is, and the outline is --ag-rule, already checked
+    #     above. What does have to hold is the ordering: no data has to be
+    #     lighter than every country the corpus reaches, or the scale runs two
+    #     ways at once.
+    land = rgb(t["--ag-globe-land"])
+    lightest = rgb(t["--ag-globe-fill-min"])
+    notes.append(
+        f"  {'--ag-globe-land':<22} {t['--ag-globe-land']:<9} "
+        f"surface {contrast(land, surface):.2f}:1   L* {lab(land)[0]:.1f} "
+        f"against the lightest fill L* {lab(lightest)[0]:.1f}"
+    )
+    if lab(land)[0] <= lab(lightest)[0]:
+        problems.append(
+            "--ag-globe-land is not lighter than --ag-globe-fill-min, so a country "
+            "holding no studies is as dark as one holding a study"
+        )
+    if lab(land)[0] - lab(lightest)[0] < 15:
+        problems.append(
+            f"--ag-globe-land is only {lab(land)[0] - lab(lightest)[0]:.1f} L* lighter "
+            "than the lightest fill, which is not enough to read as a different "
+            "category without relying on hue"
+        )
 
     # 3. the two globe colours, for a dichromat
     a, b = rgb(t["--ag-globe-existing"]), rgb(t["--ag-globe-project"])

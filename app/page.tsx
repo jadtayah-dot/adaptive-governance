@@ -12,6 +12,24 @@ const H2 = 'text-[2rem] leading-tight font-semibold tracking-tight'
 // hero metadata line and the team labels carry names and titles.
 const LABEL = 'font-mono text-[0.8rem] tracking-wide text-ink-muted'
 
+/**
+ * Initials for a person with no headshot. Honorifics are dropped, then the
+ * first letter of the given name and of the last name part, so "H.E. Dr.
+ * Abdulaziz Al Horr" gives AH rather than HD.
+ */
+const HONORIFICS = new Set(['dr', 'mr', 'ms', 'mrs', 'prof', 'he', 'h.e', 'eng'])
+
+function initials(name: string) {
+  const parts = name
+    .split(/\s+/)
+    .map((part) => part.replace(/\.$/, ''))
+    .filter((part) => part && !HONORIFICS.has(part.toLowerCase().replace(/\./g, '')))
+  if (parts.length === 0) return ''
+  const first = parts[0][0]
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : ''
+  return (first + last).toUpperCase()
+}
+
 /** Splits a middot separated line from the copy into its parts. Adds no words. */
 function parts(line: string) {
   return line.split('·').map((s) => s.trim()).filter(Boolean)
@@ -282,15 +300,13 @@ function CorpusEvidence() {
         detail={home.nav.corpusLink.detail}
       />
 
-      {/* Rendered as the literal lines from the copy, middots included. */}
-      <div className="mt-16 grid border-t border-l border-rule md:grid-cols-2">
-        <p className="border-r border-b border-rule bg-surface-raised p-6 text-[0.9rem] leading-relaxed text-ink-muted">
-          {c.filterLabels}
-        </p>
-        <p className="border-r border-b border-rule bg-surface-raised p-6 text-[0.9rem] leading-relaxed text-ink-muted">
-          {c.recordDetailFields}
-        </p>
-      </div>
+      {/*
+        `corpus.filterLabels` and `corpus.recordDetailFields` are not rendered.
+        They are the field lists the corpus table and the record page are built
+        from, which is a specification for a component rather than prose for a
+        reader, and they were being printed as two paragraphs of middots.
+        tests/homepage.py carries them in NOT_RENDERED with the other specs.
+      */}
     </div>
   )
 }
@@ -385,7 +401,7 @@ function Team() {
 function Person({ person }: { person: { name: string; role: string; image: string } }) {
   return (
     <li className="flex gap-4 border-r border-b border-rule bg-surface-raised p-6">
-      <div className="size-24 shrink-0 overflow-hidden border border-rule bg-surface">
+      <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden border border-rule bg-surface">
         {person.image ? (
           // A plain img rather than next/image. These are 96px avatars from
           // local files, so the optimizer buys little, and its lazy loading and
@@ -399,7 +415,17 @@ function Person({ person }: { person: { name: string; role: string; image: strin
             decoding="async"
             className="h-full w-full object-cover object-[center_28%] [filter:var(--ag-portrait-filter)]"
           />
-        ) : null}
+        ) : (
+          /*
+            Three partners have supplied no headshot. The frame is drawn either
+            way so the grid does not go ragged, and it carries their initials
+            rather than nothing, which read as a loading failure. Hidden from
+            assistive technology: the name is the next thing in the card.
+          */
+          <span aria-hidden="true" className="text-[1.25rem] font-medium text-ink-muted">
+            {initials(person.name)}
+          </span>
+        )}
       </div>
       <div className="min-w-0">
         <p className="text-[1.25rem] font-semibold">{person.name}</p>

@@ -26,6 +26,9 @@ SHOTS = os.path.join(ROOT, "tests", "screenshots")
 # They live in the content file for the components that will need them.
 NOT_RENDERED = {
     "corpus.emptyState",
+    # Field lists for the corpus table and the record page, not prose.
+    "corpus.filterLabels",
+    "corpus.recordDetailFields",
     "outputs.emptyState",
     "events.emptyState",
     "events.eventCardFields",

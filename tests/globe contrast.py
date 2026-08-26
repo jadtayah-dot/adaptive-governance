@@ -40,7 +40,7 @@ GEOM = """() => {
            end: Math.round(c.bottom + window.scrollY - window.innerHeight) };
 }"""
 
-BOXES = """() => {
+BOXES = r"""() => {
   const out = [];
   for (const el of document.querySelectorAll('[data-passage]')) {
     if (Number(getComputedStyle(el).opacity) < 0.5) continue;
@@ -61,7 +61,7 @@ BOXES = """() => {
 
 # Brightest pixel inside each passage box. The text itself is hidden for the
 # screenshot, so what is measured is only what sits behind it.
-SAMPLE = """async ([shot, boxes]) => {
+SAMPLE = r"""async ([shot, boxes]) => {
   const img = new Image();
   await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = shot; });
   const cv = document.createElement('canvas');

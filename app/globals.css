@@ -38,9 +38,15 @@
   */
   --ag-globe-fill-min: #1f93d8;
   --ag-globe-fill-max: #004a70;
-  /* Land the corpus does not reach. Reads as land, never as evidence, and
-     lighter than every country that does, so the scale still runs one way. */
-  --ag-globe-land: #8e949d;
+  /*
+    Land the corpus does not reach. Near the page, so it recedes and the data is
+    the only weight on the map. Its shape is carried by the polygon stroke,
+    which clears 3:1, not by the fill: a fill dark enough to clear 3:1 on its
+    own was a mid grey, and a mid grey and a mid blue are the same lightness, so
+    a country holding one study was separated from a country holding none by
+    hue alone. That is what made one and two studies read as zero.
+  */
+  --ag-globe-land: #f7f8f9;
 
   /* Type */
   --ag-font-heading: var(--font-roboto), Arial, sans-serif;

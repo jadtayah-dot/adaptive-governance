@@ -72,7 +72,14 @@ interface CountryDatum {
   code: string | null
   name: string
   count: number
-  /** Fill weight, 0 to 1, on a log scale across the corpus range. */
+  /**
+   * Fill weight, 0 to 1, on a log scale across the corpus range.
+   *
+   * One study is 0 and the corpus maximum is 1, so the lightest blue means one
+   * study rather than meaning a fifth of the way along. Under log1p the thin
+   * end of the corpus, which is where most countries sit, was compressed into
+   * the middle of the scale.
+   */
   weight: number
   geometry: unknown
   /** Roughly where to point the camera to bring this country into frame. */
@@ -283,7 +290,7 @@ function buildCountries(): { data: CountryDatum[]; unmatched: string[] } {
       code,
       name: String(f.properties.name ?? ''),
       count,
-      weight: count > 0 ? Math.log1p(count) / Math.log1p(MAX) : 0,
+      weight: count > 1 ? Math.log(count) / Math.log(MAX) : 0,
       geometry: f.geometry,
       centre,
       reach: reachOf(f.geometry, centre),

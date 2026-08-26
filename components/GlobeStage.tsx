@@ -62,6 +62,19 @@ function serverMode(): Mode {
 /** Opacity and a short lift. Both compositor properties, so nothing reflows. */
 function fade(el: HTMLElement | null, opacity: number, lift: number) {
   if (!el) return
+  /*
+    Only passages that are actually on screen are in the document at all. A
+    passage held at zero opacity was leaving a card shaped hole in the globe
+    behind it: its layer sits over the WebGL canvas and the rectangle underneath
+    is not repainted. Zero opacity does not release that layer, nor does
+    visibility hidden, nor display none, so the element is unmounted instead.
+    On the old dark ground the hole showed the page, which was near black, so
+    nobody saw it; it became obvious the moment the page turned white.
+
+    Unmounting is a React render, not a style write, so it happens when a
+    passage crosses in or out and not on every frame. Because passages leave
+    layout, no two share a stacked box: they are positioned singly.
+  */
   el.style.opacity = opacity.toFixed(3)
   el.style.transform = `translate3d(0, ${lift.toFixed(2)}px, 0)`
 }
@@ -101,7 +114,7 @@ const PASSAGES: Passage[] = [
     at: 'bottom-16 right-12 w-[22ch] text-right',
   },
   { key: 'descent', in: [0.5, 0.56], out: null, at: 'bottom-10 right-14 w-[34ch] text-right' },
-  { key: 'nodes', in: [0.82, 0.88], out: null, at: 'bottom-10 right-14 w-[34ch] text-right' },
+  { key: 'nodes', in: [0.82, 0.88], out: null, at: 'bottom-[9.5rem] right-14 w-[34ch] text-right' },
 ]
 
 /*
@@ -153,17 +166,37 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
   const handedOver = pastRelease || entered
   /** The country whose records are open beside the globe. */
   const [selected, setSelected] = useState<string | null>(null)
+  /** Which passages are on screen. See the note on fade above. */
+  const [live, setLive] = useState<boolean[]>(() => PASSAGES.map(() => false))
+  const liveRef = useRef<boolean[]>(PASSAGES.map(() => false))
+  /*
+    The painter, kept where the effect below can reach it. A passage that has
+    just been mounted has never been painted, and paint only runs on a scroll
+    update, so without re applying it here a passage that came back would sit at
+    the zero opacity it was rendered with until the reader moved again.
+  */
+  const paintRef = useRef<((p: number) => void) | null>(null)
 
   useEffect(() => {
     if (mode === 'unknown' || mode === 'static') return
 
-    const paint = (p: number) => {
-      PASSAGES.forEach((passage, i) => {
+    const paint: (p: number) => void = (p) => {
+      let changed = false
+      const next = PASSAGES.map((passage, i) => {
         const arrived = easeOut(span(p, passage.in[0], passage.in[1]))
         const gone = passage.out ? span(p, passage.out[0], passage.out[1]) : 0
-        fade(passages.current[i], arrived * (1 - gone), (1 - arrived) * 12)
+        const o = arrived * (1 - gone)
+        fade(passages.current[i], o, (1 - arrived) * 12)
+        const on = o > 0.005
+        if (on !== liveRef.current[i]) changed = true
+        return on
       })
+      if (changed) {
+        liveRef.current = next
+        setLive(next)
+      }
     }
+    paintRef.current = paint
 
     // Capture mode holds the last frame of the argument and nothing else.
     if (mode === 'still') {
@@ -224,6 +257,11 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       lenis.destroy()
     }
   }, [mode])
+
+  // Newly mounted passages have never been painted. See paintRef above.
+  useEffect(() => {
+    paintRef.current?.(progress.current)
+  }, [live])
 
   /*
     The passages belong to the argument and not to what comes after it. They are
@@ -356,7 +394,8 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         >
           {SLOTS.map((slot) => (
             <div key={slot.at} className={`absolute flex flex-col gap-6 ${slot.at}`}>
-              {slot.items.map((passage) => (
+              {slot.items.map((passage) =>
+                !live[PASSAGES.indexOf(passage)] ? null : (
                 <div
                   key={passage.key}
                   ref={(el) => {
@@ -368,7 +407,8 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
                 >
                   {body(passage.key)}
                 </div>
-              ))}
+              )
+              )}
             </div>
           ))}
         </div>
