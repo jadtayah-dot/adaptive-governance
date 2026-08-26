@@ -391,10 +391,18 @@ export default function Globe({
     const g = globe.current
     if (!g) return
     const controls = g.controls()
+    /*
+      Controls stay enabled for the whole sequence, because OrbitControls skips
+      its update entirely when they are not, and auto rotate lives inside that
+      update. Disabling them is what stopped the globe turning. What is turned
+      off instead is the input: the pointer cannot rotate, pan or zoom until the
+      handover, so the camera belongs to the scroll position until then without
+      the sphere having to be frozen to keep it there.
+    */
+    controls.enabled = true
     controls.enableZoom = false
-    // The camera is scroll driven through the argument, so nothing the pointer
-    // does may move it. The handover is what turns these back on.
-    controls.enabled = false
+    controls.enablePan = false
+    controls.enableRotate = false
     controls.autoRotateSpeed = 0.28
     // Longitude only. Latitude and altitude are set from the scroll position by
     // the effect below, which needs the camera's field of view to work them out.
@@ -531,9 +539,20 @@ export default function Globe({
 
       if (p < PHASE.descend[0]) {
         descentFrom.current = null
-        // No longitude: the rotation owns it, and pointOfView leaves out what
-        // it is not given.
-        g!.pointOfView(pose, 0)
+        /*
+          Only written when it is actually wrong. Latitude and altitude do not
+          change across this span, and writing the camera every frame fights
+          auto rotate for the same property: the rotation advances the angle and
+          the next write puts it back. Longitude is never given, so the rotation
+          keeps it.
+        */
+        const now = g!.pointOfView()
+        if (
+          Math.abs(now.lat - pose.lat) > 0.01 ||
+          Math.abs(now.altitude - pose.altitude) > 0.001
+        ) {
+          g!.pointOfView(pose, 0)
+        }
       } else {
         if (descentFrom.current === null) descentFrom.current = g!.pointOfView().lng
         const from = descentFrom.current
@@ -648,9 +667,13 @@ export default function Globe({
 
     handedOver.current = interactive
     const controls = g.controls()
-    // Rotate by dragging, but no zoom: the altitude is part of the argument and
-    // a reader who zooms into a flat polygon has left the map behind.
-    controls.enabled = interactive
+    /*
+      Rotate by dragging from here on, but no zoom: the altitude is part of the
+      argument and a reader who zooms into a flat polygon has left the map
+      behind. Auto rotate stops at the same moment, because a globe turning
+      under a pointer trying to click a country is hostile.
+    */
+    controls.enableRotate = interactive
     controls.autoRotate = false
 
     if (interactive) {

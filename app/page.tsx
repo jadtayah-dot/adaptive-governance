@@ -5,7 +5,13 @@ import home from '@/content/home.json'
 // Every string on this page comes from content/home.json, which is a verbatim
 // transcription of docs/website content.md. No copy is written here.
 
-const SECTION = 'mx-auto w-full max-w-5xl px-6 py-20 md:px-10 md:py-32'
+/*
+  Sections span the viewport. The measure is capped on the runs of prose that
+  need it, with PROSE, and not on the container: capping the container put the
+  whole site, grids, globe and all, into a column down the middle of a wide
+  screen, which is a reading measure applied to things that are not reading.
+*/
+const SECTION = 'w-full px-6 py-20 md:px-10 md:py-32 2xl:px-16'
 const PROSE = 'max-w-[68ch]'
 const H2 = 'text-[2rem] leading-tight font-semibold tracking-tight'
 // No text-transform here. Uppercasing would alter the copy as displayed, and the
@@ -209,7 +215,7 @@ function CorpusOpening() {
 function GlobeLayers() {
   const c = globe
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 pt-16 md:px-10 min-[1200px]:hidden">
+    <div className="w-full px-6 pt-16 md:px-10 2xl:px-16 min-[1200px]:hidden">
       <dl className="grid border-t border-l border-rule sm:grid-cols-3">
         {c.shells.map((shell) => (
           <div key={shell.id} className="border-r border-b border-rule bg-surface-raised p-6">
@@ -261,7 +267,7 @@ function GlobeRunway() {
 */
 function GlobeWell() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 pt-16 md:px-10">
+    <div className="w-full px-6 pt-16 md:px-10 2xl:px-16">
       {/*
         A viewport height well on the live path, because that is the box the
         pinned layer comes to rest in. On the static path it is square, to the

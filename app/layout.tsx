@@ -26,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <header className="border-b border-rule bg-surface">
           <nav
             aria-label={nav.primaryLabel}
-            className="mx-auto flex w-full max-w-5xl flex-wrap gap-x-6 gap-y-2 px-6 py-4 md:px-10"
+            className="flex w-full flex-wrap gap-x-6 gap-y-2 px-6 py-4 md:px-10 2xl:px-16"
           >
             {nav.primary.map((item) => (
               <a
