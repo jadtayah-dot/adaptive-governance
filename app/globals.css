@@ -75,6 +75,19 @@
 
   --ag-measure: 68ch;
 
+  /*
+    Room in the right margin of every section for the docked globe, so it sits
+    in the page rather than over it. It was floating, and at 1440 it covered the
+    names and roles of two partners.
+
+    Derived from DOCK_FILL and VIEW_FILL in lib/globe-sequence.ts: the card is
+    the viewport at DOCK_FILL / VIEW_FILL, which is 0.1591, plus its padding and
+    its margin, plus clearance. tests/homepage.py measures the real boxes at
+    both widths and fails if any content reaches the card, so the two cannot
+    drift apart silently.
+  */
+  --ag-dock-gutter: calc(15.91vw + 60px);
+
   /* One uniform treatment across every headshot. See DESIGN.md. */
   --ag-portrait-filter: grayscale(1) contrast(1.05) brightness(1.02);
 }
@@ -113,6 +126,21 @@ body {
 * {
   transition: none !important;
   animation: none !important;
+}
+
+/*
+  Room in the right margin for the docked globe.
+
+  Not a utility on the sections. Tailwind sorts the arbitrary min-[1200px]
+  variant ahead of the named md one, so md:px-10 won the cascade and the padding
+  never applied; this file is imported after the utilities, so source order
+  settles it here. Equal specificity, later wins, and it is one rule rather than
+  a class repeated on eleven sections.
+*/
+@media (min-width: 1200px) {
+  [data-dock-gutter] {
+    padding-right: var(--ag-dock-gutter);
+  }
 }
 
 :focus-visible {

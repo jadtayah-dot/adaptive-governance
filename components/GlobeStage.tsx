@@ -8,7 +8,18 @@ import Lenis from 'lenis'
 import CorpusPanel from './CorpusPanel'
 import GlobeMount from './GlobeMount'
 import copy from '@/content/globe.json'
-import { MIN_LIVE_WIDTH, easeOut, span } from '@/lib/globe-sequence'
+import {
+  DOCK_MARGIN,
+  DOCK_PADDING,
+  DOCK_SCALE,
+  MIN_LIVE_WIDTH,
+  SUBJECT_PRESENCE,
+  dockCardOpacity,
+  dockTransform,
+  easeOut,
+  presenceAt,
+  span,
+} from '@/lib/globe-sequence'
 
 /*
   The pinned argument. It sits inside section five, where the copy says the
@@ -147,6 +158,16 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
   const container = useRef<HTMLDivElement>(null)
   const progress = useRef(0)
   const passages = useRef<(HTMLDivElement | null)[]>([])
+  /*
+    The globe layer and the card it comes to rest on when it is not the subject.
+    The layer is the full viewport and carries the scale; the card is a plain
+    fixed box of the docked size, so its border stays one pixel rather than
+    being scaled down to nothing with everything else.
+  */
+  const layer = useRef<HTMLDivElement>(null)
+  const dock = useRef<HTMLDivElement>(null)
+  const runway = useRef<HTMLDivElement>(null)
+  const presence = useRef(1)
   const mode = useSyncExternalStore(subscribeToWidth, readMode, serverMode)
   /*
     Set once when the pin releases and cleared once when the reader comes back
@@ -175,6 +196,26 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     the zero opacity it was rendered with until the reader moved again.
   */
   const paintRef = useRef<((p: number) => void) | null>(null)
+  /*
+    Read inside the presence writer, which runs on the scroll event and not on a
+    React render, so it cannot close over the state value.
+  */
+  const handedOverRef = useRef(false)
+
+  useEffect(() => {
+    handedOverRef.current = handedOver
+    /*
+      The handover can happen without a scroll: reaching the corpus panel by
+      keyboard sets it, and so does arriving with the page already below the
+      release. Pointer input is written on the scroll event, so without writing
+      it here as well the globe would stay inert until the reader moved again.
+    */
+    const stage = layer.current
+    if (stage && stage.style.position === 'fixed') {
+      stage.style.pointerEvents =
+        presence.current >= SUBJECT_PRESENCE && handedOver ? 'auto' : 'none'
+    }
+  }, [handedOver])
 
   useEffect(() => {
     if (mode === 'unknown' || mode === 'static') return
@@ -249,13 +290,88 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
 
     paint(0)
 
+    /*
+      The globe leaves the argument container and holds the viewport for the
+      whole page. It was sticky inside a five screen container, so it existed
+      only for those five screens and scrolled away with them; fixed, it is
+      there from the hero to the footer and presence decides how much of the
+      frame it takes.
+
+      Presence is not a ScrollTrigger. A trigger only reports while it is
+      between its own start and end, and this has to keep answering above the
+      argument and below it, which is most of the page. It is one rectangle read
+      off the container on the scroll event Lenis is already emitting.
+    */
+    const stage = layer.current
+    // Copied out of the ref here so the cleanup restores the node this effect
+    // actually touched rather than whatever the ref points at by then.
+    const flow = runway.current
+    if (stage) stage.style.position = 'fixed'
+    // The pullback exists to cancel the 100vh slot a sticky layer takes in
+    // flow. A fixed layer takes none, so it has to go with it.
+    if (flow) flow.style.marginTop = '0px'
+
+    /*
+      The docked card is a plain fixed box rather than a scaled one, so its rule
+      stays a rule instead of being scaled down to nothing with everything else.
+      Its size is the viewport at the dock scale, which changes only on a
+      resize, so it is never written per frame.
+    */
+    const sizeDock = () => {
+      const el = dock.current
+      if (!el) return
+      const inset = DOCK_MARGIN - DOCK_PADDING
+      el.style.width = `${Math.round(window.innerWidth * DOCK_SCALE) + DOCK_PADDING * 2}px`
+      el.style.height = `${Math.round(window.innerHeight * DOCK_SCALE) + DOCK_PADDING * 2}px`
+      el.style.right = `${inset}px`
+      el.style.bottom = `${inset}px`
+    }
+
+    const applyPresence = () => {
+      const el = container.current
+      const stageEl = layer.current
+      if (!el || !stageEl) return
+      const box = el.getBoundingClientRect()
+      const p = presenceAt(box.top, box.bottom, window.innerHeight)
+      presence.current = p
+      stageEl.style.transform = dockTransform(p)
+      // The card belongs to the resting state, so it arrives late rather than
+      // sitting under a globe four times its size for the whole travel.
+      if (dock.current) dock.current.style.opacity = dockCardOpacity(p).toFixed(3)
+      /*
+        Pointer input belongs to the globe only while it is the subject. See
+        SUBJECT_PRESENCE: a docked sphere is a sixth of the size hover and click
+        were built for.
+      */
+      stageEl.style.pointerEvents =
+        p >= SUBJECT_PRESENCE && handedOverRef.current ? 'auto' : 'none'
+    }
+
+    lenis.on('scroll', applyPresence)
+    const onResize = () => {
+      sizeDock()
+      applyPresence()
+    }
+    window.addEventListener('resize', onResize)
+    sizeDock()
+    applyPresence()
+
     return () => {
       trigger.kill()
       gsap.ticker.remove(raf)
       gsap.ticker.lagSmoothing(500, 33)
+      lenis.off('scroll', applyPresence)
+      window.removeEventListener('resize', onResize)
       lenis.destroy()
+      if (stage) {
+        stage.style.position = ''
+        stage.style.transform = ''
+        stage.style.pointerEvents = ''
+      }
+      if (flow) flow.style.marginTop = ''
     }
   }, [mode])
+
 
   // Newly mounted passages have never been painted. See paintRef above.
   useEffect(() => {
@@ -304,14 +420,47 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         whole container and comes to rest flush with the globe well at the end.
         Pointer events are off until the handover.
       */}
+      {/*
+        The card the globe comes to rest on once it is no longer the subject.
+
+        It is a plain fixed box at the docked size rather than part of the scaled
+        layer, so its rule stays one pixel instead of being scaled to a fifth of
+        one. It is opaque, which is the point: the docked globe passes over the
+        roadmap and the team, and a sphere floating straight over a grid is
+        harder to read than a framed object sitting on top of one. Nothing is
+        ever laid over it, so it costs nothing in contrast.
+
+        Its opacity is the only thing about it that moves, and it is written on
+        the scroll event beside the layer transform.
+      */}
+      {capturing || mode !== 'live' ? null : (
+        <div
+          ref={dock}
+          data-globe-dock=""
+          aria-hidden="true"
+          style={{ opacity: 0 }}
+          className="pointer-events-none fixed z-20 border border-rule bg-surface max-[1199px]:hidden"
+        />
+      )}
+
       <div
+        ref={layer}
         aria-hidden="true"
         data-globe-still={capturing ? '' : undefined}
+        /*
+          Sticky in the markup and switched to fixed by the effect that drives
+          it. Sticky is what the server renders and what the reduced motion path
+          keeps: it holds the globe inside the argument container, which is the
+          behaviour that path already had. Fixed is what lets the globe hold the
+          viewport for the whole page, and it is only ever reached once the
+          scroll driver is running and can put it where presence says.
+        */
         className={
           capturing
             ? 'fixed inset-0 z-50 bg-surface'
             : [
-                'sticky top-0 h-screen w-full overflow-hidden max-[1199px]:hidden',
+                'sticky top-0 z-30 h-screen w-full origin-bottom-right overflow-hidden',
+                'max-[1199px]:hidden',
                 handedOver ? 'pointer-events-auto' : 'pointer-events-none',
               ].join(' ')
         }
@@ -334,6 +483,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         a screen below where the pin does.
       */}
       <div
+        ref={runway}
         className={`pointer-events-none relative -mt-[100vh] max-[1199px]:mt-0 ${
           capturing ? 'invisible' : ''
         }`}
@@ -350,6 +500,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       */}
       {capturing || mode !== 'live' ? null : (
         <div
+          data-globe-companion=""
           aria-hidden={handedOver ? undefined : true}
           /*
             Pinned to the last screen of the container, which is the well the
@@ -358,7 +509,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
             what it did.
           */
           className={[
-            'pointer-events-none absolute inset-x-0 bottom-0 h-screen max-[1199px]:hidden',
+            'pointer-events-none absolute inset-x-0 bottom-0 z-40 h-screen max-[1199px]:hidden',
             'flex justify-end',
             handedOver ? '' : 'invisible',
           ].join(' ')}
@@ -379,7 +530,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         frame passes behind them rather than through them.
       */}
       {capturing ? null : (
-        <div className="pointer-events-none fixed inset-0 z-10 max-[1199px]:hidden">
+        <div className="pointer-events-none fixed inset-0 z-40 max-[1199px]:hidden">
           {SLOTS.map((slot) => (
             <div key={slot.at} className={`absolute flex flex-col gap-6 ${slot.at}`}>
               {slot.items.map((passage) =>

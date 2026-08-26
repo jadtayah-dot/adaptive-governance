@@ -98,7 +98,8 @@ export default function Home() {
 function Hero() {
   const c = home.hero
   return (
-    <section id="hero" className={`${SECTION} border-b border-rule`}>
+    <section id="hero" data-dock-gutter
+      className={`${SECTION} border-b border-rule`}>
       <h1 className="max-w-[20ch] text-[2.25rem] leading-[1.1] font-semibold tracking-tight md:text-[3rem]">
         {c.title}
       </h1>
@@ -112,7 +113,8 @@ function Hero() {
 function Studies() {
   const c = home.studies
   return (
-    <section id="studies" className={`${SECTION} border-b border-rule`}>
+    <section id="studies" data-dock-gutter
+      className={`${SECTION} border-b border-rule`}>
       <h2 className={`${H2} max-w-[24ch]`}>{c.heading}</h2>
       <div className={`mt-10 space-y-6 ${PROSE}`}>
         {c.body.map((p) => (
@@ -134,7 +136,8 @@ function Studies() {
 function Cases() {
   const c = home.cases
   return (
-    <section id="cases" className={`${SECTION} border-b border-rule`}>
+    <section id="cases" data-dock-gutter
+      className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
       <ol className="mt-16 border-t border-rule">
@@ -160,7 +163,8 @@ function Cases() {
 function Objectives() {
   const c = home.objectives
   return (
-    <section id="objectives" className={`${SECTION} border-b border-rule`}>
+    <section id="objectives" data-dock-gutter
+      className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <div className="mt-16 grid border-t border-l border-rule md:grid-cols-2">
         {c.items.map((o) => (
@@ -185,7 +189,8 @@ function Objectives() {
 function CorpusOpening() {
   const c = home.corpus
   return (
-    <section id="corpus" className={`${SECTION} pb-0 md:pb-0`}>
+    <section id="corpus" data-dock-gutter
+      className={`${SECTION} pb-0 md:pb-0`}>
       <h2 className={H2}>{c.heading}</h2>
       <div className={`mt-10 space-y-6 ${PROSE}`}>
         {c.body.map((p) => (
@@ -295,7 +300,8 @@ function GlobeWell() {
 function CorpusEvidence() {
   const c = home.corpus
   return (
-    <div className={`${SECTION} border-b border-rule pt-0 md:pt-0`}>
+    <div data-dock-gutter
+      className={`${SECTION} border-b border-rule pt-0 md:pt-0`}>
       <p className="mt-6 max-w-[68ch] text-[0.9rem] leading-relaxed text-ink-muted">
         {c.globeNote}
       </p>
@@ -320,7 +326,8 @@ function CorpusEvidence() {
 function Roadmap() {
   const c = home.roadmap
   return (
-    <section id="roadmap" className={`${SECTION} border-b border-rule`}>
+    <section id="roadmap" data-dock-gutter
+      className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
       <ol className="mt-16 border-t border-rule">
@@ -343,7 +350,8 @@ function Roadmap() {
 function Outputs() {
   const c = home.outputs
   return (
-    <section id="outputs" className={`${SECTION} border-b border-rule`}>
+    <section id="outputs" data-dock-gutter
+      className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
       <dl className="mt-16 grid border-t border-l border-rule md:grid-cols-2">
@@ -362,7 +370,8 @@ function Outputs() {
 function Events() {
   const c = home.events
   return (
-    <section id="events" className={`${SECTION} border-b border-rule`}>
+    <section id="events" data-dock-gutter
+      className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
       <p className={`mt-8 leading-relaxed text-ink-muted ${PROSE}`}>{c.plannedStrands}</p>
@@ -374,7 +383,8 @@ function Events() {
 function Team() {
   const c = home.team
   return (
-    <section id="team" className={`${SECTION} border-b border-rule`}>
+    <section id="team" data-dock-gutter
+      className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
 
@@ -445,7 +455,8 @@ function Collaborate() {
   const c = home.collaborate
   const fields = parts(c.formFields)
   return (
-    <section id="collaborate" className={`${SECTION} border-b border-rule`}>
+    <section id="collaborate" data-dock-gutter
+      className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
 
@@ -499,7 +510,8 @@ function Collaborate() {
 function Footer() {
   const c = home.footer
   return (
-    <footer id="footer" className={`${SECTION} py-16 md:py-20`}>
+    <footer id="footer" data-dock-gutter
+      className={`${SECTION} py-16 md:py-20`}>
       <div className="grid gap-10 sm:grid-cols-3">
         {home.nav.footerColumns.map((column) => (
           <nav key={column.heading} aria-labelledby={`footer-${column.heading}`}>

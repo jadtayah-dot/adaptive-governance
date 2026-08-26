@@ -427,6 +427,63 @@ def main():
                     f"{o['a']!r} and {o['b']!r}"
                 )
 
+            # 6b. nothing on the page runs under the docked globe.
+            #
+            #     The globe holds the viewport for the whole page now, small in
+            #     the bottom right corner wherever it is not the subject. Every
+            #     section reserves room for it with --ag-dock-gutter. This is
+            #     that reservation measured rather than trusted: it covered the
+            #     names and roles of two partners the first time it was built,
+            #     and the gutter is a calc against two constants in
+            #     lib/globe-sequence.ts that nothing else would catch drifting.
+            if live:
+                covered = page.evaluate(
+                    """() => {
+                        const card = document.querySelector('[data-globe-dock]');
+                        if (!card) return { missing: true };
+                        const c = card.getBoundingClientRect();
+                        if (c.width === 0) return { missing: true };
+                        const hits = [];
+                        for (const el of document.querySelectorAll(
+                            'h1,h2,h3,p,a,li,label,input,textarea,img,dt,dd,th,td'
+                        )) {
+                            // The corpus panel rides with the globe and is
+                            // only ever on screen while it fills the frame and
+                            // the card is invisible, so it cannot be under it.
+                            if (el.closest('[data-globe-dock], [data-globe-companion]')) continue;
+                            const r = el.getBoundingClientRect();
+                            if (r.width === 0 || r.height === 0) continue;
+                            const text = (el.textContent || '').trim();
+                            if (!text && !['IMG','INPUT','TEXTAREA'].includes(el.tagName)) continue;
+                            // Horizontal only: the page scrolls, so any block
+                            // whose columns reach into the card will sit under
+                            // it at some scroll position.
+                            if (r.right > c.left) {
+                                hits.push({
+                                    tag: el.tagName.toLowerCase(),
+                                    right: Math.round(r.right),
+                                    into: Math.round(r.right - c.left),
+                                    text: text.slice(0, 40),
+                                });
+                            }
+                        }
+                        hits.sort((a, b) => b.into - a.into);
+                        return { cardLeft: Math.round(c.left), hits: hits.slice(0, 4), total: hits.length };
+                    }"""
+                )
+                if covered.get("missing"):
+                    problems.append(f"[{label}] the docked globe card is missing on the live path")
+                else:
+                    notes.append(
+                        f"[{label}] docked globe card starts at x={covered['cardLeft']}, "
+                        f"{covered['total']} element(s) reach it"
+                    )
+                    for h in covered["hits"]:
+                        problems.append(
+                            f"[{label}] <{h['tag']}> runs {h['into']}px under the docked globe: "
+                            f"{h['text']!r}"
+                        )
+
             # 7. tap target size on the narrow viewport
             if width == 390:
                 small = page.evaluate(

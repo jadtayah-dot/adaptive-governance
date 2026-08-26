@@ -380,8 +380,18 @@ export default function Globe({
     const el = wrap.current
     if (!el) return
     const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect()
-      setSize({ w: Math.round(r.width), h: Math.round(r.height) })
+      /*
+        offsetWidth and offsetHeight, not getBoundingClientRect.
+
+        The stage above this is scaled by CSS as the globe docks and undocks.
+        getBoundingClientRect reports the transformed rectangle, so the scene
+        would reframe itself to the docked box and then be scaled again on top
+        of that, ending up a fraction of the size it should be and pinned to a
+        corner of its own canvas. The layout size ignores ancestor transforms,
+        which is what is wanted here: the canvas is always drawn at viewport
+        size and the dock is a downsample of it.
+      */
+      setSize({ w: el.offsetWidth, h: el.offsetHeight })
     })
     ro.observe(el)
     return () => ro.disconnect()

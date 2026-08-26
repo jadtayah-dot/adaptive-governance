@@ -63,6 +63,101 @@ export function framingAltitude(fovDegrees: number): number {
   return Math.max(MIN_ALTITUDE, distance - 1)
 }
 
+/*
+  The dock.
+
+  The globe is present for the whole page rather than only inside section five.
+  It is the subject where the copy is about it and a small object in the corner
+  everywhere else, and it travels between the two on scroll.
+
+  The size change is a CSS scale on the whole layer rather than a change of
+  altitude or of canvas size. Altitude would work but puts the camera about
+  three and a half times further out, where the polygon extrusion stops being
+  readable, and resizing the canvas reallocates the drawing buffer on every
+  frame of the travel. A scale is one compositor property and the scene never
+  learns about it.
+
+  Scaling down is safe in a way scaling up would not be: the canvas is always
+  drawn at viewport size, so the docked globe is a downsample rather than a
+  magnification.
+*/
+
+/**
+ * How much of the viewport height the sphere fills once docked.
+ *
+ * Every section reserves room for the docked globe in its right margin, as
+ * --ag-dock-gutter in globals.css, so the two are one number and changing this
+ * one means changing that one. It was 0.18 and came down to this because the
+ * gutter 0.18 needed took a fifth of the content width at 1200, where the grids
+ * are already at their narrowest.
+ */
+export const DOCK_FILL = 0.14
+/** Gap between the docked globe and the corner, in pixels. */
+export const DOCK_MARGIN = 24
+/*
+  Breathing room between the sphere and the card it sits on.
+
+  The layer is the viewport, and the sphere takes VIEW_FILL of its height, so
+  scaling the layer down leaves the sphere six percent of the card height clear
+  at top and bottom. The polygons are extruded and stand above the surface, so
+  at that margin the tallest of them are clipped by the card edge. The card is
+  drawn this much larger than the scaled layer on every side instead, which
+  leaves the extrusion room without touching the framing the scene computes.
+*/
+export const DOCK_PADDING = 12
+/** The layer is the viewport, so this scales the sphere with everything else. */
+export const DOCK_SCALE = DOCK_FILL / VIEW_FILL
+
+/**
+ * Presence at or above which the globe is the subject and takes pointer input.
+ *
+ * Docked it does not, and that is a decision rather than an oversight. Hover
+ * and click were built for a sphere filling the frame: at a sixth of that, a
+ * country is a few pixels and the tooltip, which lives inside the scaled layer,
+ * would be scaled with it. A docked globe that cannot be clicked is honest
+ * about what it is, and scrolling back to the well gives the reader the
+ * instrument again.
+ */
+export const SUBJECT_PRESENCE = 0.995
+
+/**
+ * How much of the frame the globe takes, from where the argument sits in the
+ * viewport. 0 is docked in the corner, 1 is the subject filling the frame.
+ *
+ * It rises across the viewport height before the argument starts and falls
+ * across the viewport height after the well has been passed, so the globe
+ * arrives at full size exactly as the sequence begins and leaves only once its
+ * resting place has gone by. A pure function of two numbers off one rectangle,
+ * which is what lets the reader scroll up and find it where they left it.
+ */
+export function presenceAt(top: number, bottom: number, viewportHeight: number): number {
+  const approach = clamp01((viewportHeight - top) / viewportHeight)
+  const depart = clamp01((viewportHeight - bottom) / viewportHeight)
+  return easeInOut(approach) * (1 - easeInOut(depart))
+}
+
+/**
+ * How solid the card is at a given presence.
+ *
+ * It is drawn at the docked size and does not travel, so it belongs to the
+ * resting state and not to the journey. Fading it linearly with presence left a
+ * rectangle sitting under a globe four times its size for most of the travel,
+ * which read as a stray frame rather than as a card. It arrives instead only
+ * once the globe is nearly home.
+ */
+export const DOCK_CARD_AT = 0.2
+
+export function dockCardOpacity(presence: number): number {
+  return clamp01((DOCK_CARD_AT - presence) / DOCK_CARD_AT)
+}
+
+/** The transform that takes the full frame layer to where presence says it is. */
+export function dockTransform(presence: number) {
+  const scale = lerp(DOCK_SCALE, 1, presence)
+  const inset = (1 - presence) * DOCK_MARGIN
+  return `translate3d(${-inset.toFixed(2)}px, ${-inset.toFixed(2)}px, 0) scale(${scale.toFixed(4)})`
+}
+
 /** Far enough out that the camera never ends up inside the sphere. */
 export const MIN_ALTITUDE = 0.08
 
