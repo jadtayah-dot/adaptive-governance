@@ -2,20 +2,29 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import GlobeGl, { type GlobeMethods } from 'react-globe.gl'
-import { Mesh, MeshBasicMaterial, SphereGeometry } from 'three'
+import {
+  BufferGeometry,
+  Float32BufferAttribute,
+  LineBasicMaterial,
+  LineSegments,
+  Mesh,
+  MeshBasicMaterial,
+  type PerspectiveCamera,
+  SphereGeometry,
+} from 'three'
 import gsap from 'gsap'
 import { feature } from 'topojson-client'
 import topology from 'world-atlas/countries-110m.json'
-
-import { useRouter } from 'next/navigation'
 
 import corpus from '@/content/corpus by country.json'
 import copy from '@/content/globe.json'
 import { ISO_NUMERIC_TO_ALPHA3 } from '@/lib/iso-numeric-to-alpha3'
 import {
   FLATTEN_AT,
+  HANDOVER_LAT,
   HANDOVER_MS,
-  HANDOVER_POSE,
+  OPENING_LAT,
+  OPENING_LNG,
   NODE_ALTITUDE,
   NODE_COLLAR_ALTITUDE,
   NODE_COLLAR_RADIUS,
@@ -23,15 +32,16 @@ import {
   NODE_RISE,
   NODE_STAGGER,
   PHASE,
-  QATAR_POSE,
+  QATAR,
+  DESCENT_RATIO,
   altitudeAt,
   SHELLS,
   SHELL_ARRIVE,
   SUBJECT_CODE,
   SUBJECT_STROKE_OPACITY,
-  WHOLE_POSE,
   easeInOut,
   easeOut,
+  fillingAltitude,
   latitudeAt,
   lerp,
   nodeRing,
@@ -65,6 +75,10 @@ interface CountryDatum {
   /** Fill weight, 0 to 1, on a log scale across the corpus range. */
   weight: number
   geometry: unknown
+  /** Roughly where to point the camera to bring this country into frame. */
+  centre: { lat: number; lng: number }
+  /** How far the country reaches from that centre, in degrees. */
+  reach: number
 }
 
 export interface GlobeProps {
@@ -80,7 +94,19 @@ export interface GlobeProps {
    * well: the same counts are readable and filterable in the corpus table.
    */
   interactive?: boolean
+  /** The selected country, ISO alpha 3, or null. Drawn as the current choice. */
+  selected?: string | null
+  /** A click on a country the corpus reaches. Opens its records beside the globe. */
+  onSelect?: (code: string) => void
 }
+
+/*
+  How much of the sphere a chosen country is shown with, as a half angle in
+  degrees. The floor stops a small country putting the camera on the deck and
+  the ceiling stops a very large one pulling it out to a marble.
+*/
+const SELECT_MIN_ANGLE = 22
+const SELECT_MAX_ANGLE = 52
 
 const COUNTS = (corpus as { byCountry: Counts }).byCountry
 const MAX = Math.max(...Object.values(COUNTS))
@@ -118,6 +144,94 @@ function withAlpha(hex: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+/*
+  A graticule: parallels and meridians at `step` degrees apart, on a unit sphere
+  of the globe's own radius.
+
+  The shells carry one each. At an altitude that puts the sphere past every edge
+  of the frame there is no silhouette to see, so a shell can only be read by
+  what is drawn on it sliding across what is under it. Points come from the
+  globe's own getCoords, so the cage is on the same axis as the country polygons
+  rather than on one this file worked out for itself.
+*/
+function graticule(g: GlobeMethods, step: number) {
+  const points: number[] = []
+  const push = (lat: number, lng: number) => {
+    const { x, y, z } = g.getCoords(lat, lng, 0)
+    points.push(x, y, z)
+  }
+  // Fine enough that a parallel reads as a circle rather than as a polygon.
+  const ARC = 4
+
+  for (let lng = -180; lng < 180; lng += step) {
+    for (let lat = -90; lat < 90; lat += ARC) {
+      push(lat, lng)
+      push(Math.min(lat + ARC, 90), lng)
+    }
+  }
+  for (let lat = -90 + step; lat < 90; lat += step) {
+    if (Math.abs(lat) > 89) continue
+    for (let lng = -180; lng < 180; lng += ARC) {
+      push(lat, lng)
+      push(lat, lng + ARC)
+    }
+  }
+
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute(points, 3))
+  return geometry
+}
+
+/*
+  Roughly where a country is, for pointing the camera at it.
+
+  The mean of the largest ring, not a true centroid: the largest ring is the
+  mainland, so the answer is not dragged into the sea by an island group, and
+  the camera only has to arrive close enough that the country is in frame. It is
+  wrong by a few degrees for countries that straddle the antimeridian, which at
+  this altitude still puts them on screen.
+*/
+function centreOf(geometry: unknown): { lat: number; lng: number } {
+  const g = geometry as { type: string; coordinates: number[][][] | number[][][][] }
+  const rings: number[][][] =
+    g.type === 'MultiPolygon'
+      ? (g.coordinates as number[][][][]).map((poly) => poly[0])
+      : [(g.coordinates as number[][][])[0]]
+  let biggest = rings[0] ?? []
+  for (const ring of rings) if (ring && ring.length > biggest.length) biggest = ring
+  if (!biggest.length) return { lat: 0, lng: 0 }
+  let lat = 0
+  let lng = 0
+  for (const [x, y] of biggest) {
+    lng += x
+    lat += y
+  }
+  return { lat: lat / biggest.length, lng: lng / biggest.length }
+}
+
+/*
+  How far a country reaches from its centre, in degrees, as the widest point on
+  its largest ring. Used to work out how far back the camera has to be for the
+  country to be in frame with something around it.
+*/
+function reachOf(geometry: unknown, centre: { lat: number; lng: number }): number {
+  const g = geometry as { type: string; coordinates: number[][][] | number[][][][] }
+  const rings: number[][][] =
+    g.type === 'MultiPolygon'
+      ? (g.coordinates as number[][][][]).map((poly) => poly[0])
+      : [(g.coordinates as number[][][])[0]]
+  let biggest = rings[0] ?? []
+  for (const ring of rings) if (ring && ring.length > biggest.length) biggest = ring
+  let worst = 0
+  const cos = Math.cos((centre.lat * Math.PI) / 180)
+  for (const [x, y] of biggest) {
+    const dx = (x - centre.lng) * cos
+    const dy = y - centre.lat
+    worst = Math.max(worst, Math.hypot(dx, dy))
+  }
+  return worst
+}
+
 function buildCountries(): { data: CountryDatum[]; unmatched: string[] } {
   const world = topology as unknown as Parameters<typeof feature>[0]
   const collection = feature(world, world.objects.countries) as {
@@ -132,6 +246,7 @@ function buildCountries(): { data: CountryDatum[]; unmatched: string[] } {
     const code = ISO_NUMERIC_TO_ALPHA3[id] ?? null
     if (code) seen.add(code)
     const count = code ? (COUNTS[code] ?? 0) : 0
+    const centre = centreOf(f.geometry)
     return {
       id,
       code,
@@ -139,16 +254,22 @@ function buildCountries(): { data: CountryDatum[]; unmatched: string[] } {
       count,
       weight: count > 0 ? Math.log1p(count) / Math.log1p(MAX) : 0,
       geometry: f.geometry,
+      centre,
+      reach: reachOf(f.geometry, centre),
     }
   })
 
   return { data, unmatched: Object.keys(COUNTS).filter((c) => !seen.has(c)) }
 }
 
-export default function Globe({ progress, interactive = false }: GlobeProps) {
+export default function Globe({
+  progress,
+  interactive = false,
+  selected = null,
+  onSelect,
+}: GlobeProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const globe = useRef<GlobeMethods | undefined>(undefined)
-  const router = useRouter()
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [live, setLive] = useState(false)
   const [hovered, setHovered] = useState<CountryDatum | null>(null)
@@ -172,6 +293,12 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
   // assumed, because the globe is still rotating when the descent begins and a
   // fixed start longitude would make the camera jump at the boundary.
   const descentFrom = useRef<number | null>(null)
+  /*
+    The altitude that puts the sphere past every edge of this canvas. It depends
+    on the field of view, which belongs to the camera, and on the canvas, which
+    changes on resize, so it is recomputed rather than written down.
+  */
+  const opening = useRef(1)
   const lastApplied = useRef(-1)
   /*
     Past the handover the camera belongs to the reader, not to the scroll
@@ -227,7 +354,9 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
     // does may move it. The handover is what turns these back on.
     controls.enabled = false
     controls.autoRotateSpeed = 0.28
-    g.pointOfView(WHOLE_POSE)
+    // Longitude only. Latitude and altitude are set from the scroll position by
+    // the effect below, which needs the camera's field of view to work them out.
+    g.pointOfView({ lat: OPENING_LAT, lng: OPENING_LNG })
     setLive(true)
   }, [])
 
@@ -252,18 +381,24 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
       silhouette of that disc against the ground.
     */
     const shells = SHELLS.map((shell) => {
-      const geometry = new SphereGeometry(radius, 48, 32)
-      const material = new MeshBasicMaterial({
-        color: palette.rule,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-      })
-      const mesh = new Mesh(geometry, material)
-      mesh.scale.setScalar(shell.from)
-      mesh.visible = false
-      scene.add(mesh)
-      return { mesh, material, geometry, shell }
+      const skin = new SphereGeometry(radius, 48, 32)
+      const cage = graticule(g, shell.graticuleStep)
+      const parts = [
+        { geometry: skin, material: new MeshBasicMaterial({
+            color: palette.rule, transparent: true, opacity: 0, depthWrite: false }) },
+        { geometry: cage, material: new LineBasicMaterial({
+            color: palette.rule, transparent: true, opacity: 0, depthWrite: false }) },
+      ]
+      const meshes = [
+        new Mesh(parts[0].geometry, parts[0].material),
+        new LineSegments(parts[1].geometry, parts[1].material),
+      ]
+      for (const mesh of meshes) {
+        mesh.scale.setScalar(shell.from)
+        mesh.visible = false
+        scene.add(mesh)
+      }
+      return { meshes, parts, shell }
     })
 
     /*
@@ -321,17 +456,21 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
 
       // The shells are gone by the time the camera has finished descending.
       const gone = span(p, PHASE.descend[0], PHASE.descend[0] + 0.17)
-      for (const { mesh, material, shell } of shells) {
+      for (const { meshes, parts, shell } of shells) {
         // Each shell runs on its own span, so they leave one after the other.
         const travelled = span(p, shell.separate[0], shell.separate[1])
-        mesh.scale.setScalar(lerp(shell.from, shell.to, easeInOut(travelled)))
+        const scale = lerp(shell.from, shell.to, easeInOut(travelled))
         // Fades in over the start of its own travel, so nothing is on screen
         // during phase one, then thins as it goes out.
         const arrived = easeOut(span(travelled, 0, SHELL_ARRIVE))
-        const o =
-          arrived * lerp(shell.opacityPeak, shell.opacityEnd, travelled) * (1 - gone)
-        material.opacity = o
-        mesh.visible = o > 0.002
+        const o = arrived * lerp(shell.opacityPeak, shell.opacityEnd, travelled) * (1 - gone)
+        meshes.forEach((mesh, i) => {
+          mesh.scale.setScalar(scale)
+          mesh.visible = o > 0.002
+          // The graticule carries the movement, so it is drawn harder than the
+          // fill it sits on.
+          parts[i].material.opacity = i === 0 ? o : o * 2.4
+        })
       }
 
       // Past the handover the reader owns the camera. Nothing below this line
@@ -346,7 +485,7 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
         until the descent starts, so it is read live at that boundary and
         interpolated from there, or the sphere would jump mid turn.
       */
-      const pose = { lat: latitudeAt(p), altitude: altitudeAt(p) }
+      const pose = { lat: latitudeAt(p), altitude: altitudeAt(p, opening.current) }
 
       if (p < PHASE.descend[0]) {
         descentFrom.current = null
@@ -358,7 +497,7 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
         const from = descentFrom.current
         const t = easeInOut(span(p, PHASE.descend[0], PHASE.descend[1]))
         g!.pointOfView(
-          { ...pose, lng: from + shortestLngDelta(from, QATAR_POSE.lng) * t },
+          { ...pose, lng: from + shortestLngDelta(from, QATAR.lng) * t },
           0,
         )
       }
@@ -384,10 +523,12 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
     gsap.ticker.add(tick)
     return () => {
       gsap.ticker.remove(tick)
-      for (const { mesh, material, geometry } of shells) {
-        scene.remove(mesh)
-        material.dispose()
-        geometry.dispose()
+      for (const { meshes, parts } of shells) {
+        meshes.forEach((mesh, i) => {
+          scene.remove(mesh)
+          parts[i].material.dispose()
+          parts[i].geometry.dispose()
+        })
       }
       for (const { mesh, material } of nodes) {
         scene.remove(mesh)
@@ -398,6 +539,56 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
       lastApplied.current = -1
     }
   }, [calm, live, palette, progress])
+
+  /*
+    The altitude that fills this canvas, recomputed whenever the canvas changes.
+    The field of view comes off the camera rather than being written down here,
+    so if globe.gl ever changes it the framing follows.
+
+    Applied straight away as well as stored, because on the first pass the
+    ticker may not run again until the reader scrolls.
+  */
+  useEffect(() => {
+    const g = globe.current
+    if (!live || !g || !ready) return
+    const camera = g.camera() as PerspectiveCamera
+    opening.current = fillingAltitude(size.w, size.h, camera.fov)
+    if (!handedOver.current) {
+      const p = progress.current
+      g.pointOfView(
+        { lat: latitudeAt(p), altitude: altitudeAt(p, opening.current) },
+        0,
+      )
+    }
+  }, [live, ready, size.w, size.h, progress])
+
+  /*
+    Bring the chosen country into frame.
+
+    The list beside the globe and the globe itself are the same choice, so
+    choosing on one has to move the other. Without this a reader who picks the
+    United States from the index gets its records next to a picture of the Gulf,
+    and the outline marking the choice is on the far side of the sphere.
+
+    Only once the handover has happened: before that the camera belongs to the
+    scroll position.
+  */
+  useEffect(() => {
+    const g = globe.current
+    if (!live || !g || !interactive || !selected) return
+    const at = data.find((d) => d.code === selected)
+    if (!at) return
+    /*
+      Far enough back that the country is in frame with something around it.
+      The opening altitude will not do: it puts the sphere past every edge, so
+      pointing it at a country fills the screen with one polygon and the map
+      stops being a map. The camera pulls back to twice the country's own reach
+      and no closer than the opening altitude.
+    */
+    const wanted = Math.min(SELECT_MAX_ANGLE, Math.max(SELECT_MIN_ANGLE, at.reach * 2))
+    const altitude = Math.max(opening.current, 1 / Math.cos((wanted * Math.PI) / 180) - 1)
+    g.pointOfView({ ...at.centre, altitude }, calm ? 0 : HANDOVER_MS)
+  }, [selected, interactive, live, calm, data])
 
   /*
     The handover, and the way back out of it.
@@ -422,7 +613,10 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
       // The bars come back with the camera. That is derived at render from the
       // prop rather than set here, so nothing has to write state from an
       // effect: see `flattened` below.
-      g.pointOfView(HANDOVER_POSE, calm ? 0 : HANDOVER_MS)
+      g.pointOfView(
+        { lat: HANDOVER_LAT, lng: QATAR.lng, altitude: opening.current },
+        calm ? 0 : HANDOVER_MS,
+      )
       return
     }
 
@@ -433,8 +627,11 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
       ticker can take over again from the end of that tween without a step.
     */
     if (lastApplied.current < 0) return // first run, nothing to return from
-    descentFrom.current = QATAR_POSE.lng
-    g.pointOfView(QATAR_POSE, calm ? 0 : HANDOVER_MS)
+    descentFrom.current = QATAR.lng
+    g.pointOfView(
+      { ...QATAR, altitude: opening.current * DESCENT_RATIO },
+      calm ? 0 : HANDOVER_MS,
+    )
   }, [interactive, live, calm])
 
   const capColor = useCallback(
@@ -474,11 +671,14 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
       if (d.code === SUBJECT_CODE) {
         return withAlpha(palette.existing, SUBJECT_STROKE_OPACITY)
       }
+      // The current choice keeps the accent outline whether or not the pointer
+      // is on it, so the reader can see what the list beside the globe is of.
+      if (selected && d.code === selected) return palette.existing
       // Only countries a click will actually filter light up under the pointer.
       if (hovered && hovered.id === d.id && d.count > 0) return palette.existing
       return withAlpha(palette.rule, d.count > 0 ? 0.85 : 0.42)
     },
-    [palette, hovered],
+    [palette, hovered, selected],
   )
 
   /*
@@ -525,10 +725,11 @@ export default function Globe({ progress, interactive = false }: GlobeProps) {
     (obj: object) => {
       const d = obj as CountryDatum
       if (!clickable(d)) return
-      // The corpus reads its filters off the query string. See app/corpus.
-      router.push(`/corpus?country=${encodeURIComponent(d.code as string)}`)
+      // The records open beside the globe rather than on another page, and the
+      // globe stays live so the next country is one click away.
+      onSelect?.(d.code as string)
     },
-    [clickable, router],
+    [clickable, onSelect],
   )
 
   const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {

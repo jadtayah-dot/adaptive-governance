@@ -5,6 +5,7 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
 
+import CorpusPanel from './CorpusPanel'
 import GlobeMount from './GlobeMount'
 import copy from '@/content/globe.json'
 import { HANDOVER_MS, MIN_LIVE_WIDTH, easeOut, span } from '@/lib/globe-sequence'
@@ -128,7 +129,18 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     above it. It stays set for the whole page below the release, so scrolling
     away to the team and back finds the globe still live rather than asleep.
   */
-  const [handedOver, setHandedOver] = useState(false)
+  const [pastRelease, setPastRelease] = useState(false)
+  /*
+    Reaching the corpus panel by keyboard is a reader arriving at the globe just
+    as much as scrolling past the release is, so it hands over too. Without this
+    the panel would be focusable behind a globe that was still mid argument, or
+    it would have to be unreachable until someone scrolled, which is not a
+    keyboard path at all.
+  */
+  const [entered, setEntered] = useState(false)
+  const handedOver = pastRelease || entered
+  /** The country whose records are open beside the globe. */
+  const [selected, setSelected] = useState<string | null>(null)
 
   useEffect(() => {
     if (mode === 'unknown' || mode === 'static') return
@@ -176,7 +188,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       up above it; both are called once each way. onRefresh covers arriving with
       the page already scrolled past the release, and a resize that moves it.
     */
-    const syncHandover = (self: ScrollTrigger) => setHandedOver(self.progress >= 1)
+    const syncHandover = (self: ScrollTrigger) => setPastRelease(self.progress >= 1)
 
     const trigger = ScrollTrigger.create({
       trigger: container.current,
@@ -265,7 +277,12 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       >
         <div className="absolute inset-0">
           {mode === 'live' || capturing ? (
-            <GlobeMount progress={progress} interactive={handedOver} />
+            <GlobeMount
+              progress={progress}
+              interactive={handedOver}
+              selected={selected}
+              onSelect={setSelected}
+            />
           ) : null}
         </div>
       </div>
@@ -282,6 +299,39 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       >
         {children}
       </div>
+
+      {/*
+        The corpus, beside the globe. It rides with the sticky layer, so it
+        comes to rest in the well exactly where the globe does, and it is
+        ordinary DOM rather than an overlay: real buttons, real links, in
+        reading order. Hidden while the argument is still running, because
+        there is nothing to choose from yet.
+      */}
+      {capturing || mode !== 'live' ? null : (
+        <div
+          aria-hidden={handedOver ? undefined : true}
+          /*
+            Pinned to the last screen of the container, which is the well the
+            globe comes to rest in. Absolute rather than sticky: a sticky panel
+            carries on down the page over the roadmap and the team, which is
+            what it did.
+          */
+          className={[
+            'pointer-events-none absolute inset-x-0 bottom-0 h-screen max-[1199px]:hidden',
+            'flex justify-end',
+            handedOver ? '' : 'invisible',
+          ].join(' ')}
+        >
+          <div className="h-full w-[26rem] max-w-[34%]">
+            <CorpusPanel
+              country={selected}
+              onSelect={setSelected}
+              onClear={() => setSelected(null)}
+              onEnter={() => setEntered(true)}
+            />
+          </div>
+        </div>
+      )}
 
       {/*
         The passages, fixed to the viewport and last in paint order so the well

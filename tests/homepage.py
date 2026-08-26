@@ -383,10 +383,18 @@ def main():
                         }
                         return true;
                     };
+                    // Boxes are viewport relative and only one scroll position is
+                    // sampled, so two elements far apart in the document can land on
+                    // the same coordinates once both are off screen. Only what is
+                    // actually on screen can actually be overlapping.
+                    const onScreen = (r) =>
+                        r.bottom > 0 && r.top < window.innerHeight &&
+                        r.right > 0 && r.left < window.innerWidth;
                     const els = [...document.querySelectorAll(sel)].filter(el => {
                         if (el.querySelector(sel)) return false;          // leaf text only
                         const r = el.getBoundingClientRect();
                         return r.width > 0 && r.height > 0
+                            && onScreen(r)
                             && (el.textContent || '').trim().length > 0
                             && shown(el);
                     });

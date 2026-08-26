@@ -9,17 +9,35 @@
 // Writes:
 //   content/corpus.json            the published records
 //   content/corpus by country.json counts, derived from corpus.json so the two cannot disagree
+//   content/corpus summary.json    the five fields the homepage list shows, and nothing else
+//   content/country names.json     alpha 3 to the name the globe draws, for the country index
 //
 // Two source columns never reach the output. Both carry verbatim publisher text:
 //   Key quotation(s) + page no.
 //   Definition of adaptive governance (with page no.)
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import { feature } from 'topojson-client'
+import topology from 'world-atlas/countries-110m.json' with { type: 'json' }
+
+import { ISO_NUMERIC_TO_ALPHA3 } from '../lib/iso-numeric-to-alpha3.ts'
 
 const CORPUS_CSV = 'content/corpus.csv'
 const MAPPING_CSV = 'content/country mapping.csv'
 const OUT_CORPUS = 'content/corpus.json'
 const OUT_COUNTS = 'content/corpus by country.json'
+const OUT_SUMMARY = 'content/corpus summary.json'
+const OUT_NAMES = 'content/country names.json'
+
+/*
+  The homepage carries the corpus now, so the records ship to the browser rather
+  than being read at build time the way /corpus reads them. The full set is
+  nearly half a megabyte across twenty nine fields, which is not something to
+  put in front of a reviewer on a slow connection for a list that shows five of
+  them. This is those five, derived from the same records, so the summary and
+  the full page cannot disagree.
+*/
+const SUMMARY_FIELDS = ['id', 'title', 'authors', 'year', 'countries', 'url']
 
 // Columns that must never be carried into the output, matched on the source header.
 const BANNED_COLUMNS = [
@@ -279,6 +297,29 @@ const counts = {
 writeFileSync(OUT_CORPUS, JSON.stringify(records, null, 2) + '\n', 'utf8')
 writeFileSync(OUT_COUNTS, JSON.stringify(counts, null, 2) + '\n', 'utf8')
 
+// Only the records the homepage list can show. A record with no country can
+// never be reached by selecting a country, so it is not carried.
+const summary = records
+  .filter((r) => r.countries.length > 0)
+  .map((r) => Object.fromEntries(SUMMARY_FIELDS.map((f) => [f, r[f]])))
+writeFileSync(OUT_SUMMARY, JSON.stringify(summary) + '\n', 'utf8')
+
+/*
+  Country names for the index beside the globe, taken from the same world-atlas
+  polygons the globe draws, so a name in the list and a name in the tooltip are
+  the same string. Written out here rather than looked up in the browser: the
+  boundary data is a hundred kilobytes and the index needs sixty six names.
+*/
+const collection = feature(topology, topology.objects.countries)
+const countryNames = {}
+for (const f of collection.features) {
+  const code = ISO_NUMERIC_TO_ALPHA3[String(Number(f.id))]
+  if (code && counts.byCountry[code] > 0) {
+    countryNames[code] = String(f.properties.name ?? code)
+  }
+}
+writeFileSync(OUT_NAMES, JSON.stringify(countryNames, null, 2) + '\n', 'utf8')
+
 // ---------------------------------------------------------------- report
 
 const withCountry = records.length - withoutCountry
@@ -287,6 +328,8 @@ const top = Object.entries(sortedByCountry).slice(0, 15)
 console.log('')
 console.log(`  ${OUT_CORPUS}`)
 console.log(`  ${OUT_COUNTS}`)
+console.log(`  ${OUT_SUMMARY}`)
+console.log(`  ${OUT_NAMES}`)
 console.log('')
 console.log(`  total records                  ${records.length}`)
 console.log(`  with at least one country      ${withCountry}`)

@@ -46,29 +46,43 @@ export const PHASE = {
   covered about two thirds of the viewport height and a third of its width on a
   wide screen, which reads as a marble in a room rather than as the subject.
 
-  The sphere fills roughly nine tenths of the viewport height at OPENING and it
-  holds that altitude all the way to the descent. The camera does not back off
-  for the dissection: the shells were brought in to travel less instead, because
-  a globe that shrinks to make room for its own diagram is back to being small.
+  The sphere runs off every edge of the viewport. It is not a sphere with
+  margins around it: no limb is in frame, and what the reader sees is a surface
+  they are close to.
 
-    fraction of viewport height = radius / (distance * tan(fov / 2))
-    distance = radius * (1 + altitude), fov 50 degrees
+  That cannot be a constant, because globe.gl frames by field of view and a
+  wider canvas buys empty pixels rather than reach. A fixed altitude that fills
+  a 1440 frame leaves margins on a 1920 one. So the opening altitude is computed
+  from the canvas each time it changes, and the camera never backs off it.
 
+    screen diameter = canvasHeight / (distance * tan(fov / 2))
+
+  with distance in globe radii. Setting the screen diameter to VIEW_OVERFLOW
+  times the canvas width and solving for distance gives the altitude below.
 */
-export const OPENING_ALTITUDE = 1.5
+export const VIEW_OVERFLOW = 1.06
+/** Far enough out that the camera never ends up inside the sphere. */
+export const MIN_ALTITUDE = 0.08
 
-/** Opening view. Enough of the sphere in frame that the distribution reads. */
-export const WHOLE_POSE: Pose = { lat: 18, lng: 12, altitude: OPENING_ALTITUDE }
+export function fillingAltitude(canvasW: number, canvasH: number, fovDegrees: number): number {
+  if (canvasW <= 0 || canvasH <= 0) return MIN_ALTITUDE
+  const distance = canvasH / (VIEW_OVERFLOW * canvasW * Math.tan((fovDegrees * Math.PI) / 360))
+  return Math.max(MIN_ALTITUDE, distance - 1)
+}
+
+/** The descent goes in from the opening altitude by this much. */
+export const DESCENT_RATIO = 0.42
+
+/** Where the sequence opens. Longitude is only a starting point: it rotates. */
+export const OPENING_LAT = 18
+export const OPENING_LNG = 12
 
 /**
- * Doha. The descent target.
- *
- * The altitude is 0.9 rather than the 0.35 in the build plan. That figure was
- * written against a globe with no extrusion; at 0.35 over 110m boundary data
- * with raised polygons the side walls become slabs several hundred pixels high
- * and no country is identifiable.
+ * Doha. The descent target. Altitude is derived from the opening altitude
+ * rather than fixed, so the descent is always the same move in from whatever
+ * filling the frame turned out to require.
  */
-export const QATAR_POSE: Pose = { lat: 25.28, lng: 51.52, altitude: 0.9 }
+export const QATAR: { lat: number; lng: number } = { lat: 25.28, lng: 51.52 }
 
 /**
  * Altitude for any point in the sequence. Held close for the whole globe and
@@ -77,21 +91,17 @@ export const QATAR_POSE: Pose = { lat: 25.28, lng: 51.52, altitude: 0.9 }
  * A pure function of the scroll position, which is what lets the camera find
  * its own way back when a reader scrolls up: there is no state to restore.
  */
-export function altitudeAt(p: number): number {
+export function altitudeAt(p: number, opening: number): number {
   return lerp(
-    OPENING_ALTITUDE,
-    QATAR_POSE.altitude,
+    opening,
+    opening * DESCENT_RATIO,
     easeInOut(span(p, PHASE.descend[0], PHASE.descend[1])),
   )
 }
 
 /** Latitude for any point in the sequence. Holds, then tilts north to Doha. */
 export function latitudeAt(p: number): number {
-  return lerp(
-    WHOLE_POSE.lat,
-    QATAR_POSE.lat,
-    easeInOut(span(p, PHASE.descend[0], PHASE.descend[1])),
-  )
+  return lerp(OPENING_LAT, QATAR.lat, easeInOut(span(p, PHASE.descend[0], PHASE.descend[1])))
 }
 
 /**
@@ -116,7 +126,7 @@ export const FLATTEN_AT = 0.52
  * not squashed against the bottom of the sphere.
  */
 export const HANDOVER_MS = 800
-export const HANDOVER_POSE: Pose = { lat: 20, lng: 51.52, altitude: OPENING_ALTITUDE }
+export const HANDOVER_LAT = 20
 
 /**
  * The two shells that separate. The third shell of the argument is the globe
@@ -128,11 +138,16 @@ export const HANDOVER_POSE: Pose = { lat: 20, lng: 51.52, altitude: OPENING_ALTI
  * layer. A faintly filled sphere reads as a layer, and its silhouette against
  * the ground is the edge.
  *
- * `from` and `to` are multiples of the globe radius. They travel to 1.25 and
- * 1.5 rather than 1.35 and 1.7 so the camera can hold its altitude through the
- * dissection: coming apart is the point, not how far they get. The two spans
- * overlap but do not coincide, so the outer one leaves first and each label has
- * something to name when it arrives.
+ * `from` and `to` are multiples of the globe radius, and they are small. At an
+ * altitude that puts the sphere past every edge of the frame no limb is
+ * visible, so no shell silhouette is either, however far it travels. What does
+ * read at that range is the shell's own graticule sliding across the surface
+ * beneath it, and the parallax between them grows with even a few percent of
+ * separation. So each shell is a faint fill for the layer and a graticule for
+ * the movement, and they travel to 1.06 and 1.12 rather than out of frame.
+ *
+ * The two spans overlap but do not coincide, so the outer one leaves first and
+ * each label has something to name when it arrives.
  *
  * Both start at zero opacity and fade in over the first part of their own
  * travel, so phase one is a bare sphere. Both thin as they go, so what is left
@@ -142,18 +157,20 @@ export const SHELLS = [
   {
     id: 'global',
     from: 1.04,
-    to: 1.5,
+    to: 1.12,
     separate: [0.2, 0.34],
-    opacityPeak: 0.16,
-    opacityEnd: 0.05,
+    opacityPeak: 0.1,
+    opacityEnd: 0.03,
+    graticuleStep: 20,
   },
   {
     id: 'regional',
     from: 1.02,
-    to: 1.25,
+    to: 1.06,
     separate: [0.29, 0.45],
-    opacityPeak: 0.22,
-    opacityEnd: 0.07,
+    opacityPeak: 0.14,
+    opacityEnd: 0.045,
+    graticuleStep: 10,
   },
 ] as const
 

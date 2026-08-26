@@ -30,6 +30,17 @@ declare module 'three' {
 
   export class Scene extends Object3D {}
   export class Camera extends Object3D {}
+
+  /**
+   * globe.gl frames by field of view, so the sphere's size on screen is decided
+   * by the camera rather than by the canvas. react-globe.gl types `camera()` as
+   * the base class, so reading the angle back means casting to this.
+   */
+  export class PerspectiveCamera extends Camera {
+    fov: number
+    aspect: number
+    updateProjectionMatrix(): void
+  }
   export class Light extends Object3D {}
 
   export class WebGLRenderer {}
@@ -48,6 +59,7 @@ declare module 'three' {
   }
 
   export class BufferAttribute {}
+
 
   export class Float32BufferAttribute extends BufferAttribute {
     constructor(array: number[] | Float32Array, itemSize: number)

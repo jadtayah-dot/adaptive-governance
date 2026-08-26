@@ -25,5 +25,13 @@
     "studies": "studies",
     "empty": "No studies in the corpus",
     "filterHint": "Click to filter the corpus"
+  },
+  "panel": {
+    "label": "The corpus, by country",
+    "indexHeading": "Every country in the corpus",
+    "indexDetail": "Choose one to see its records beside the globe. The globe itself is the same choice, made on the map.",
+    "clear": "Clear the selection",
+    "full": "Open the full record",
+    "fullDetail": "Every field, filterable and citable."
   }
 }
