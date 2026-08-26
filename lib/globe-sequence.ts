@@ -64,98 +64,115 @@ export function framingAltitude(fovDegrees: number): number {
 }
 
 /*
-  The dock.
+  The globe behind the page.
 
-  The globe is present for the whole page rather than only inside section five.
-  It is the subject where the copy is about it and a small object in the corner
-  everywhere else, and it travels between the two on scroll.
+  It is mounted once and holds the viewport from the hero to the footer. Behind
+  every section it is a faint wash, drawn under the content; approaching section
+  five it comes forward to full strength and fills the frame, plays the
+  argument, and recedes again once the well has gone by.
 
-  The size change is a CSS scale on the whole layer rather than a change of
-  altitude or of canvas size. Altitude would work but puts the camera about
-  three and a half times further out, where the polygon extrusion stops being
-  readable, and resizing the canvas reallocates the drawing buffer on every
-  frame of the travel. A scale is one compositor property and the scene never
-  learns about it.
+  What changes is opacity and a little scale, both compositor properties. It was
+  briefly a small card docked in a corner, which meant scaling the layer to a
+  sixth and gave the page a right margin to keep out of. The wash needs neither:
+  the globe never moves, so nothing has to make room for it and the grids are
+  full width again.
 
-  Scaling down is safe in a way scaling up would not be: the canvas is always
-  drawn at viewport size, so the docked globe is a downsample rather than a
-  magnification.
+  Being behind the copy is the thing the earlier margin layout needed a scrim
+  for. There is no scrim. Instead BACKGROUND_OPACITY is bounded by contrast:
+  tests/palette.py composites the darkest colour the globe can draw at that
+  opacity over the darkest end of the page gradient and requires every text
+  token to clear 4.5:1 against the result.
 */
 
 /**
- * How much of the viewport height the sphere fills once docked.
+ * How solid the globe is behind ordinary page content.
  *
- * Every section reserves room for the docked globe in its right margin, as
- * --ag-dock-gutter in globals.css, so the two are one number and changing this
- * one means changing that one. It was 0.18 and came down to this because the
- * gutter 0.18 needed took a fifth of the content width at 1200, where the grids
- * are already at their narrowest.
+ * Set by the contrast bound rather than by eye. The accent is the binding case:
+ * it clears 4.5:1 on the page by the smallest margin of any text colour, and it
+ * carries the hero subtitle, which sits directly over the globe.
  */
-export const DOCK_FILL = 0.14
-/** Gap between the docked globe and the corner, in pixels. */
-export const DOCK_MARGIN = 24
+export const BACKGROUND_OPACITY = 0.08
+
+/**
+ * How large the globe is behind the page, against filling the frame.
+ *
+ * A little smaller, so that coming forward is a move rather than only a change
+ * of strength. Not much smaller: the sphere is framed against the viewport
+ * height and a background that shrinks reads as a different object arriving
+ * rather than the same one approaching.
+ */
+export const BACKGROUND_SCALE = 0.86
+
+/**
+ * Presence at or above which the globe takes pointer input.
+ *
+ * Below this it is a wash behind the copy, and a tooltip that opens because the
+ * pointer crossed a faint shape under a paragraph is not a feature. In practice
+ * the content layer settles this as well: every section paints above the globe
+ * and takes its own pointer events, so only section five, whose runway and well
+ * are empty and transparent to the pointer, ever hands them through.
+ */
+export const SUBJECT_PRESENCE = 0.6
+
 /*
-  Breathing room between the sphere and the card it sits on.
+  Size and strength are not on the same curve, and the reason is contrast.
 
-  The layer is the viewport, and the sphere takes VIEW_FILL of its height, so
-  scaling the layer down leaves the sphere six percent of the card height clear
-  at top and bottom. The polygons are extruded and stand above the surface, so
-  at that margin the tallest of them are clipped by the card edge. The card is
-  drawn this much larger than the scaled layer on every side instead, which
-  leaves the extrusion room without touching the framing the scene computes.
+  Size runs across the whole viewport height either side of the argument, which
+  is the part a reader sees as the globe approaching and withdrawing. Strength
+  cannot: for most of that travel there is still page copy on screen, and a
+  globe at half opacity behind a paragraph fails 4.5:1 by a wide margin.
+
+  So strength is measured in pixels of copy rather than in presence, because
+  pixels of copy is the thing that actually decides it. It rises only once the
+  container has pushed the section above it off the top of the screen, and falls
+  as soon as the section below it starts to appear at the bottom. Both numbers
+  come from the layout: sections carry 128 pixels of padding at this breakpoint,
+  and the corpus note directly under the well carries none at all, which is why
+  the fall is so much shorter than the rise.
+
+  These are not guesses. tests/page contrast.py samples the real pixels behind
+  every run of copy on the page, at fine steps across both, and fails under
+  4.5:1.
 */
-export const DOCK_PADDING = 12
-/** The layer is the viewport, so this scales the sphere with everything else. */
-export const DOCK_SCALE = DOCK_FILL / VIEW_FILL
+
+/** Container top, in pixels, over which strength goes from background to full. */
+export const STRENGTH_RISE_FROM = 240
+export const STRENGTH_RISE_TO = 110
+/** Pixels of the section below showing before strength is back to background. */
+export const STRENGTH_FALL_OVER = 80
+
+export type Stage = {
+  /** 0 is the wash behind the page, 1 is the subject filling the frame. */
+  presence: number
+  /** 0 is BACKGROUND_OPACITY, 1 is solid. */
+  strength: number
+}
 
 /**
- * Presence at or above which the globe is the subject and takes pointer input.
- *
- * Docked it does not, and that is a decision rather than an oversight. Hover
- * and click were built for a sphere filling the frame: at a sixth of that, a
- * country is a few pixels and the tooltip, which lives inside the scaled layer,
- * would be scaled with it. A docked globe that cannot be clicked is honest
- * about what it is, and scrolling back to the well gives the reader the
- * instrument again.
+ * Where the globe is and how solid it is, from where the argument container
+ * sits in the viewport. A pure function of two numbers off one rectangle, which
+ * is what lets the reader scroll up and find it where they left it.
  */
-export const SUBJECT_PRESENCE = 0.995
-
-/**
- * How much of the frame the globe takes, from where the argument sits in the
- * viewport. 0 is docked in the corner, 1 is the subject filling the frame.
- *
- * It rises across the viewport height before the argument starts and falls
- * across the viewport height after the well has been passed, so the globe
- * arrives at full size exactly as the sequence begins and leaves only once its
- * resting place has gone by. A pure function of two numbers off one rectangle,
- * which is what lets the reader scroll up and find it where they left it.
- */
-export function presenceAt(top: number, bottom: number, viewportHeight: number): number {
+export function stageAt(top: number, bottom: number, viewportHeight: number): Stage {
   const approach = clamp01((viewportHeight - top) / viewportHeight)
   const depart = clamp01((viewportHeight - bottom) / viewportHeight)
-  return easeInOut(approach) * (1 - easeInOut(depart))
+  const presence = easeInOut(approach) * (1 - easeInOut(depart))
+
+  const rise = clamp01((STRENGTH_RISE_FROM - top) / (STRENGTH_RISE_FROM - STRENGTH_RISE_TO))
+  const fall = clamp01((viewportHeight - bottom) / STRENGTH_FALL_OVER)
+  const strength = easeInOut(rise) * (1 - easeInOut(fall))
+
+  return { presence, strength }
 }
 
-/**
- * How solid the card is at a given presence.
- *
- * It is drawn at the docked size and does not travel, so it belongs to the
- * resting state and not to the journey. Fading it linearly with presence left a
- * rectangle sitting under a globe four times its size for most of the travel,
- * which read as a stray frame rather than as a card. It arrives instead only
- * once the globe is nearly home.
- */
-export const DOCK_CARD_AT = 0.2
-
-export function dockCardOpacity(presence: number): number {
-  return clamp01((DOCK_CARD_AT - presence) / DOCK_CARD_AT)
+/** The transform that takes the layer to where presence says it is. */
+export function stageTransform(presence: number) {
+  return `scale(${lerp(BACKGROUND_SCALE, 1, presence).toFixed(4)})`
 }
 
-/** The transform that takes the full frame layer to where presence says it is. */
-export function dockTransform(presence: number) {
-  const scale = lerp(DOCK_SCALE, 1, presence)
-  const inset = (1 - presence) * DOCK_MARGIN
-  return `translate3d(${-inset.toFixed(2)}px, ${-inset.toFixed(2)}px, 0) scale(${scale.toFixed(4)})`
+/** How solid the globe is at a given strength. */
+export function stageOpacity(strength: number) {
+  return lerp(BACKGROUND_OPACITY, 1, strength)
 }
 
 /** Far enough out that the camera never ends up inside the sphere. */

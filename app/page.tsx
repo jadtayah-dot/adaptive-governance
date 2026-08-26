@@ -98,7 +98,7 @@ export default function Home() {
 function Hero() {
   const c = home.hero
   return (
-    <section id="hero" data-dock-gutter
+    <section id="hero" data-above-globe
       className={`${SECTION} border-b border-rule`}>
       <h1 className="max-w-[20ch] text-[2.25rem] leading-[1.1] font-semibold tracking-tight md:text-[3rem]">
         {c.title}
@@ -113,7 +113,7 @@ function Hero() {
 function Studies() {
   const c = home.studies
   return (
-    <section id="studies" data-dock-gutter
+    <section id="studies" data-above-globe
       className={`${SECTION} border-b border-rule`}>
       <h2 className={`${H2} max-w-[24ch]`}>{c.heading}</h2>
       <div className={`mt-10 space-y-6 ${PROSE}`}>
@@ -136,7 +136,7 @@ function Studies() {
 function Cases() {
   const c = home.cases
   return (
-    <section id="cases" data-dock-gutter
+    <section id="cases" data-above-globe
       className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
@@ -163,7 +163,7 @@ function Cases() {
 function Objectives() {
   const c = home.objectives
   return (
-    <section id="objectives" data-dock-gutter
+    <section id="objectives" data-above-globe
       className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <div className="mt-16 grid border-t border-l border-rule md:grid-cols-2">
@@ -189,7 +189,7 @@ function Objectives() {
 function CorpusOpening() {
   const c = home.corpus
   return (
-    <section id="corpus" data-dock-gutter
+    <section id="corpus" data-above-globe
       className={`${SECTION} pb-0 md:pb-0`}>
       <h2 className={H2}>{c.heading}</h2>
       <div className={`mt-10 space-y-6 ${PROSE}`}>
@@ -300,7 +300,7 @@ function GlobeWell() {
 function CorpusEvidence() {
   const c = home.corpus
   return (
-    <div data-dock-gutter
+    <div data-above-globe
       className={`${SECTION} border-b border-rule pt-0 md:pt-0`}>
       <p className="mt-6 max-w-[68ch] text-[0.9rem] leading-relaxed text-ink-muted">
         {c.globeNote}
@@ -326,7 +326,7 @@ function CorpusEvidence() {
 function Roadmap() {
   const c = home.roadmap
   return (
-    <section id="roadmap" data-dock-gutter
+    <section id="roadmap" data-above-globe
       className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
@@ -350,7 +350,7 @@ function Roadmap() {
 function Outputs() {
   const c = home.outputs
   return (
-    <section id="outputs" data-dock-gutter
+    <section id="outputs" data-above-globe
       className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
@@ -370,7 +370,7 @@ function Outputs() {
 function Events() {
   const c = home.events
   return (
-    <section id="events" data-dock-gutter
+    <section id="events" data-above-globe
       className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
@@ -383,7 +383,7 @@ function Events() {
 function Team() {
   const c = home.team
   return (
-    <section id="team" data-dock-gutter
+    <section id="team" data-above-globe
       className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
@@ -455,7 +455,7 @@ function Collaborate() {
   const c = home.collaborate
   const fields = parts(c.formFields)
   return (
-    <section id="collaborate" data-dock-gutter
+    <section id="collaborate" data-above-globe
       className={`${SECTION} border-b border-rule`}>
       <h2 className={H2}>{c.heading}</h2>
       <p className={`mt-8 text-[1.25rem] leading-relaxed ${PROSE}`}>{c.intro}</p>
@@ -510,7 +510,7 @@ function Collaborate() {
 function Footer() {
   const c = home.footer
   return (
-    <footer id="footer" data-dock-gutter
+    <footer id="footer" data-above-globe
       className={`${SECTION} py-16 md:py-20`}>
       <div className="grid gap-10 sm:grid-cols-3">
         {home.nav.footerColumns.map((column) => (

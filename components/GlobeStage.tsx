@@ -9,16 +9,13 @@ import CorpusPanel from './CorpusPanel'
 import GlobeMount from './GlobeMount'
 import copy from '@/content/globe.json'
 import {
-  DOCK_MARGIN,
-  DOCK_PADDING,
-  DOCK_SCALE,
   MIN_LIVE_WIDTH,
   SUBJECT_PRESENCE,
-  dockCardOpacity,
-  dockTransform,
   easeOut,
-  presenceAt,
   span,
+  stageAt,
+  stageOpacity,
+  stageTransform,
 } from '@/lib/globe-sequence'
 
 /*
@@ -159,13 +156,10 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
   const progress = useRef(0)
   const passages = useRef<(HTMLDivElement | null)[]>([])
   /*
-    The globe layer and the card it comes to rest on when it is not the subject.
-    The layer is the full viewport and carries the scale; the card is a plain
-    fixed box of the docked size, so its border stays one pixel rather than
-    being scaled down to nothing with everything else.
+    The globe layer. Always the full viewport, always centred, and always under
+    the page content. What presence changes is how solid it is.
   */
   const layer = useRef<HTMLDivElement>(null)
-  const dock = useRef<HTMLDivElement>(null)
   const runway = useRef<HTMLDivElement>(null)
   const presence = useRef(1)
   const mode = useSyncExternalStore(subscribeToWidth, readMode, serverMode)
@@ -311,49 +305,26 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     // flow. A fixed layer takes none, so it has to go with it.
     if (flow) flow.style.marginTop = '0px'
 
-    /*
-      The docked card is a plain fixed box rather than a scaled one, so its rule
-      stays a rule instead of being scaled down to nothing with everything else.
-      Its size is the viewport at the dock scale, which changes only on a
-      resize, so it is never written per frame.
-    */
-    const sizeDock = () => {
-      const el = dock.current
-      if (!el) return
-      const inset = DOCK_MARGIN - DOCK_PADDING
-      el.style.width = `${Math.round(window.innerWidth * DOCK_SCALE) + DOCK_PADDING * 2}px`
-      el.style.height = `${Math.round(window.innerHeight * DOCK_SCALE) + DOCK_PADDING * 2}px`
-      el.style.right = `${inset}px`
-      el.style.bottom = `${inset}px`
-    }
 
     const applyPresence = () => {
       const el = container.current
       const stageEl = layer.current
       if (!el || !stageEl) return
       const box = el.getBoundingClientRect()
-      const p = presenceAt(box.top, box.bottom, window.innerHeight)
+      const { presence: p, strength } = stageAt(box.top, box.bottom, window.innerHeight)
       presence.current = p
-      stageEl.style.transform = dockTransform(p)
-      // The card belongs to the resting state, so it arrives late rather than
-      // sitting under a globe four times its size for the whole travel.
-      if (dock.current) dock.current.style.opacity = dockCardOpacity(p).toFixed(3)
+      stageEl.style.transform = stageTransform(p)
+      stageEl.style.opacity = stageOpacity(strength).toFixed(3)
       /*
-        Pointer input belongs to the globe only while it is the subject. See
-        SUBJECT_PRESENCE: a docked sphere is a sixth of the size hover and click
-        were built for.
+        Pointer input belongs to the globe only while it is prominent. See
+        SUBJECT_PRESENCE.
       */
       stageEl.style.pointerEvents =
         p >= SUBJECT_PRESENCE && handedOverRef.current ? 'auto' : 'none'
     }
 
     lenis.on('scroll', applyPresence)
-    const onResize = () => {
-      sizeDock()
-      applyPresence()
-    }
-    window.addEventListener('resize', onResize)
-    sizeDock()
+    window.addEventListener('resize', applyPresence)
     applyPresence()
 
     return () => {
@@ -361,11 +332,12 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       gsap.ticker.remove(raf)
       gsap.ticker.lagSmoothing(500, 33)
       lenis.off('scroll', applyPresence)
-      window.removeEventListener('resize', onResize)
+      window.removeEventListener('resize', applyPresence)
       lenis.destroy()
       if (stage) {
         stage.style.position = ''
         stage.style.transform = ''
+        stage.style.opacity = ''
         stage.style.pointerEvents = ''
       }
       if (flow) flow.style.marginTop = ''
@@ -420,29 +392,6 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         whole container and comes to rest flush with the globe well at the end.
         Pointer events are off until the handover.
       */}
-      {/*
-        The card the globe comes to rest on once it is no longer the subject.
-
-        It is a plain fixed box at the docked size rather than part of the scaled
-        layer, so its rule stays one pixel instead of being scaled to a fifth of
-        one. It is opaque, which is the point: the docked globe passes over the
-        roadmap and the team, and a sphere floating straight over a grid is
-        harder to read than a framed object sitting on top of one. Nothing is
-        ever laid over it, so it costs nothing in contrast.
-
-        Its opacity is the only thing about it that moves, and it is written on
-        the scroll event beside the layer transform.
-      */}
-      {capturing || mode !== 'live' ? null : (
-        <div
-          ref={dock}
-          data-globe-dock=""
-          aria-hidden="true"
-          style={{ opacity: 0 }}
-          className="pointer-events-none fixed z-20 border border-rule bg-surface max-[1199px]:hidden"
-        />
-      )}
-
       <div
         ref={layer}
         aria-hidden="true"
@@ -451,15 +400,17 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
           Sticky in the markup and switched to fixed by the effect that drives
           it. Sticky is what the server renders and what the reduced motion path
           keeps: it holds the globe inside the argument container, which is the
-          behaviour that path already had. Fixed is what lets the globe hold the
-          viewport for the whole page, and it is only ever reached once the
-          scroll driver is running and can put it where presence says.
+          behaviour that path already had. Fixed is what lets the globe sit
+          behind the whole page, and it is only ever reached once the scroll
+          driver is running and can set the strength presence asks for.
         */
         className={
           capturing
             ? 'fixed inset-0 z-50 bg-surface'
             : [
-                'sticky top-0 z-30 h-screen w-full origin-bottom-right overflow-hidden',
+                // z-0 and every section above it: the globe is behind the page,
+                // not over it. See the [data-above-globe] rule in globals.css.
+                'sticky top-0 z-0 h-screen w-full origin-center overflow-hidden',
                 'max-[1199px]:hidden',
                 handedOver ? 'pointer-events-auto' : 'pointer-events-none',
               ].join(' ')

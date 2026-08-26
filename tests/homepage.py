@@ -427,61 +427,46 @@ def main():
                     f"{o['a']!r} and {o['b']!r}"
                 )
 
-            # 6b. nothing on the page runs under the docked globe.
+            # 6b. the globe is behind the page, not over it.
             #
-            #     The globe holds the viewport for the whole page now, small in
-            #     the bottom right corner wherever it is not the subject. Every
-            #     section reserves room for it with --ag-dock-gutter. This is
-            #     that reservation measured rather than trusted: it covered the
-            #     names and roles of two partners the first time it was built,
-            #     and the gutter is a calc against two constants in
-            #     lib/globe-sequence.ts that nothing else would catch drifting.
+            #     It holds the viewport for the whole page as a faint wash. The
+            #     sections that come before the globe stage in the document
+            #     would be under a fixed layer without the [data-above-globe]
+            #     rule in globals.css, and the hero would be covered by it. This
+            #     is that rule measured: every section outranks the layer, and
+            #     the layer is at its background strength away from the
+            #     argument. What the copy over it reads at is measured by
+            #     tests/page contrast.py against real pixels.
             if live:
-                covered = page.evaluate(
+                stack = page.evaluate(
                     """() => {
-                        const card = document.querySelector('[data-globe-dock]');
-                        if (!card) return { missing: true };
-                        const c = card.getBoundingClientRect();
-                        if (c.width === 0) return { missing: true };
-                        const hits = [];
-                        for (const el of document.querySelectorAll(
-                            'h1,h2,h3,p,a,li,label,input,textarea,img,dt,dd,th,td'
-                        )) {
-                            // The corpus panel rides with the globe and is
-                            // only ever on screen while it fills the frame and
-                            // the card is invisible, so it cannot be under it.
-                            if (el.closest('[data-globe-dock], [data-globe-companion]')) continue;
-                            const r = el.getBoundingClientRect();
-                            if (r.width === 0 || r.height === 0) continue;
-                            const text = (el.textContent || '').trim();
-                            if (!text && !['IMG','INPUT','TEXTAREA'].includes(el.tagName)) continue;
-                            // Horizontal only: the page scrolls, so any block
-                            // whose columns reach into the card will sit under
-                            // it at some scroll position.
-                            if (r.right > c.left) {
-                                hits.push({
-                                    tag: el.tagName.toLowerCase(),
-                                    right: Math.round(r.right),
-                                    into: Math.round(r.right - c.left),
-                                    text: text.slice(0, 40),
-                                });
-                            }
+                        const layer = [...document.querySelectorAll('div')].find(
+                          (d) => d.style.position === 'fixed' && d.className.includes('origin-center')
+                        );
+                        if (!layer) return { missing: true };
+                        const z = (el) => Number(getComputedStyle(el).zIndex) || 0;
+                        const under = [];
+                        for (const s of document.querySelectorAll('[data-above-globe]')) {
+                          if (z(s) <= z(layer)) under.push(s.id || s.tagName.toLowerCase());
                         }
-                        hits.sort((a, b) => b.into - a.into);
-                        return { cardLeft: Math.round(c.left), hits: hits.slice(0, 4), total: hits.length };
+                        return { layerZ: z(layer), under, opacity: Number(layer.style.opacity) };
                     }"""
                 )
-                if covered.get("missing"):
-                    problems.append(f"[{label}] the docked globe card is missing on the live path")
+                if stack.get("missing"):
+                    problems.append(f"[{label}] the globe layer is not on the page")
                 else:
                     notes.append(
-                        f"[{label}] docked globe card starts at x={covered['cardLeft']}, "
-                        f"{covered['total']} element(s) reach it"
+                        f"[{label}] globe layer z {stack['layerZ']}, "
+                        f"opacity at the top of the page {stack['opacity']}"
                     )
-                    for h in covered["hits"]:
+                    for sid in stack["under"]:
                         problems.append(
-                            f"[{label}] <{h['tag']}> runs {h['into']}px under the docked globe: "
-                            f"{h['text']!r}"
+                            f"[{label}] section #{sid} does not paint above the globe layer"
+                        )
+                    if stack["opacity"] > 0.2:
+                        problems.append(
+                            f"[{label}] the globe is at {stack['opacity']} at the top of the page, "
+                            "which is not a background"
                         )
 
             # 7. tap target size on the narrow viewport

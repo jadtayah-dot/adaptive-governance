@@ -15,6 +15,18 @@
 :root {
   /* Colour */
   --ag-surface: #ffffff;
+  /*
+    The page is a wash rather than a flat white, asked for on 26 August 2026.
+    Two stops, near white down to a light grey, held to the viewport rather than
+    run over the whole document: a gradient stretched across sixteen thousand
+    pixels is a flat colour at any one moment.
+
+    --ag-surface stays the light end and the name every component already uses.
+    This is the dark end, and it is the colour every contrast ratio on the site
+    is now the worse of: tests/palette.py checks text against both stops and
+    fails on whichever is tighter.
+  */
+  --ag-surface-deep: #f5f6f8;
   --ag-surface-raised: #edeeee;
   --ag-ink: #151515;
   --ag-ink-muted: #515966;
@@ -75,19 +87,6 @@
 
   --ag-measure: 68ch;
 
-  /*
-    Room in the right margin of every section for the docked globe, so it sits
-    in the page rather than over it. It was floating, and at 1440 it covered the
-    names and roles of two partners.
-
-    Derived from DOCK_FILL and VIEW_FILL in lib/globe-sequence.ts: the card is
-    the viewport at DOCK_FILL / VIEW_FILL, which is 0.1591, plus its padding and
-    its margin, plus clearance. tests/homepage.py measures the real boxes at
-    both widths and fails if any content reaches the card, so the two cannot
-    drift apart silently.
-  */
-  --ag-dock-gutter: calc(15.91vw + 60px);
-
   /* One uniform treatment across every headshot. See DESIGN.md. */
   --ag-portrait-filter: grayscale(1) contrast(1.05) brightness(1.02);
 }
@@ -112,7 +111,9 @@
 }
 
 body {
-  background: var(--ag-surface);
+  /* Held to the viewport, so the wash reads at any scroll position. */
+  background: linear-gradient(180deg, var(--ag-surface) 0%, var(--ag-surface-deep) 100%);
+  background-attachment: fixed;
   color: var(--ag-ink);
   font-family: var(--ag-font-body);
   font-size: var(--ag-text-base);
@@ -129,18 +130,17 @@ body {
 }
 
 /*
-  Room in the right margin for the docked globe.
+  The globe is behind the page, so every section paints above it.
 
-  Not a utility on the sections. Tailwind sorts the arbitrary min-[1200px]
-  variant ahead of the named md one, so md:px-10 won the cascade and the padding
-  never applied; this file is imported after the utilities, so source order
-  settles it here. Equal specificity, later wins, and it is one rule rather than
-  a class repeated on eleven sections.
+  Without this the sections that come before the globe stage in the document
+  would be under a fixed layer and the hero would be covered by it. A rule here
+  rather than a utility on each section: this file is imported after the
+  utilities, so source order settles any conflict, and it is one rule rather
+  than a class repeated on twelve sections.
 */
-@media (min-width: 1200px) {
-  [data-dock-gutter] {
-    padding-right: var(--ag-dock-gutter);
-  }
+[data-above-globe] {
+  position: relative;
+  z-index: 10;
 }
 
 :focus-visible {

@@ -51,6 +51,25 @@ def tokens():
     return dict(re.findall(r"(--ag-[\w-]+)\s*:\s*([^;]+);", root.group(1)))
 
 
+def background_opacity():
+    """
+    How solid the globe is behind ordinary page content, read out of
+    lib/globe-sequence.ts rather than repeated here so the bound and the site
+    cannot drift apart.
+    """
+    path = os.path.join(ROOT, "lib", "globe-sequence.ts")
+    with open(path, encoding="utf-8") as f:
+        m = re.search(r"BACKGROUND_OPACITY\s*=\s*([\d.]+)", f.read())
+    if not m:
+        raise SystemExit("could not find BACKGROUND_OPACITY in lib/globe-sequence.ts")
+    return float(m.group(1))
+
+
+def composite(fg, bg, alpha):
+    """Source over, in the gamma encoded channels the compositor works in."""
+    return tuple(round(bg[i] * (1 - alpha) + fg[i] * alpha) for i in range(3))
+
+
 def rgb(value):
     h = value.strip().lstrip("#")
     if len(h) == 3:
@@ -120,10 +139,18 @@ def main():
     notes = []
 
     surface = rgb(t["--ag-surface"])
+    deep = rgb(t["--ag-surface-deep"])
     raised = rgb(t["--ag-surface-raised"])
 
-    # 1. text and rules against both surfaces
-    against = [("surface", surface), ("raised", raised)]
+    # The page is a gradient now, and the globe sits behind it as a faint wash,
+    # so the ground under a line of text is not one colour and not the lightest
+    # one. This is the worst of it: the darkest colour the globe can draw,
+    # composited at BACKGROUND_OPACITY over the darkest stop of the gradient.
+    # Every text colour is checked against that as well as against the stops.
+    wash = composite(rgb(t["--ag-globe-fill-max"]), deep, background_opacity())
+
+    # 1. text and rules against every ground a reader can meet
+    against = [("surface", surface), ("deep", deep), ("raised", raised), ("wash", wash)]
     for name, minimum in [
         ("--ag-ink", TEXT_MIN),
         ("--ag-ink-muted", TEXT_MIN),
@@ -145,8 +172,12 @@ def main():
     # 2. both ends of the polygon fill scale, against the page
     for name in ("--ag-globe-fill-min", "--ag-globe-fill-max"):
         c = rgb(t[name])
-        r = contrast(c, surface)
-        notes.append(f"  {name:<22} {t[name]:<9} surface {r:.2f}:1")
+        # The darker stop of the page gradient is the harder of the two.
+        r = min(contrast(c, surface), contrast(c, deep))
+        notes.append(
+            f"  {name:<22} {t[name]:<9} surface {contrast(c, surface):.2f}:1"
+            f"   deep {contrast(c, deep):.2f}:1"
+        )
         if r < NON_TEXT_MIN:
             problems.append(
                 f"{name} is {r:.2f}:1 on the surface, so a country drawn at that "
