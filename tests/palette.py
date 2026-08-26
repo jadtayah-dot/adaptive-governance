@@ -153,6 +153,44 @@ def main():
                 f"end of the scale is under the {NON_TEXT_MIN}:1 non text minimum"
             )
 
+    # 2c. The corpus bars walk between those same two ends with color-mix in
+    #     sRGB, which is a straight line in gamma encoded channels. Both ends are
+    #     checked above; what the bars need on top of that is that no point in
+    #     between dips under 3:1 and that the walk never doubles back, because
+    #     lightness is what carries the count and a scale that reverses in the
+    #     middle reads two counts as the same. Fifty steps, which is finer than
+    #     the corpus can produce: 31 studies is the largest bar.
+    lo = rgb(t["--ag-globe-fill-min"])
+    hi = rgb(t["--ag-globe-fill-max"])
+    steps = 50
+    walk = []
+    for i in range(steps + 1):
+        f = i / steps
+        walk.append(tuple(round(lo[c] + (hi[c] - lo[c]) * f) for c in range(3)))
+    #     The bar is drawn on a track, not on the page, so the track is what it
+    #     has to be told apart from. The track is --ag-globe-land for that
+    #     reason: on --ag-surface-raised the lightest bar is under 3:1.
+    track = rgb(t["--ag-globe-land"])
+    worst = min(min(contrast(c, surface) for c in walk), min(contrast(c, track) for c in walk))
+    notes.append(
+        f"  {'corpus bar walk':<22} {steps} steps  worst {worst:.2f}:1   "
+        f"L* {lab(walk[0])[0]:.1f} to {lab(walk[-1])[0]:.1f}"
+    )
+    if worst < NON_TEXT_MIN:
+        problems.append(
+            f"a corpus bar somewhere along the fill walk is {worst:.2f}:1 against "
+            f"the page or against its track, under the {NON_TEXT_MIN}:1 non text "
+            "minimum"
+        )
+    lightness = [lab(c)[0] for c in walk]
+    for i in range(steps):
+        if lightness[i + 1] > lightness[i] + 1e-9:
+            problems.append(
+                "the corpus bar walk is not monotonic in lightness at step "
+                f"{i}, so two different counts can be drawn at the same weight"
+            )
+            break
+
     # 2b. Land the corpus does not reach is deliberately near the page, so that
     #     lightness rather than hue separates a country holding no studies from
     #     one holding a single study. Its fill is therefore not what has to clear

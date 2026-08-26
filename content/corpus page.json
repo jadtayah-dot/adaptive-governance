@@ -1,0 +1,53 @@
+{
+  "title": "Corpus",
+  "standfirst": "The 217 studies analysed in the systematic review. The distribution comes first, because where the literature is and where it is not is part of what the review found. The full table sits underneath and holds whatever the selection above it holds.",
+  "selection": {
+    "unit": "of 217 studies",
+    "none": "No selection. The whole corpus.",
+    "clear": "Clear the selection",
+    "remove": "Remove",
+    "rule": "Choices inside one breakdown widen the selection. Choices across two breakdowns narrow it.",
+    "link": "The selection is held in the address of this page, so a filtered view can be linked and cited.",
+    "preview": "Rest the pointer on any group, or reach it with the keyboard, and every other bar is cut back to the part of itself that group holds. Choosing it makes that the selection."
+  },
+  "ranking": {
+    "heading": "Studies by country",
+    "detail": "Every country the corpus reaches, ordered by the number of studies it holds. Bar length and bar darkness carry the same count. Choose a country to hold the selection to it.",
+    "noCountryHeading": "Studies set in no single country",
+    "noCountryDetail": "Records the review recorded at a scale wider than one country, held here by that scale.",
+    "empty": "No country holds a study under this selection."
+  },
+  "breakdowns": {
+    "heading": "Four breakdowns",
+    "derivation": "One of the four is a coded field. Normative stance was recorded from a short fixed list. Level of governance, research design and sector were recorded as free text, with close to one distinct wording for every record, so the groups below are drawn from that text by rule rather than assigned by a coder. Every record still carries its own wording, under the field it was recorded in, and any wording no rule matched is shown here rather than dropped.",
+    "multi": "Counted once at each group it names, so these totals exceed the number of studies.",
+    "single": "One group per study."
+  },
+  "table": {
+    "heading": "The records",
+    "detail": "The same studies the selection above holds, in full. Choose a row to read every field the review recorded for it.",
+    "searchLabel": "Search title, authors and screening note",
+    "searchPlaceholder": "fuzzy search",
+    "columns": {
+      "id": "ID",
+      "year": "Year",
+      "title": "Title",
+      "authors": "Authors",
+      "countries": "Countries",
+      "scale": "Scale",
+      "sector": "Sector as recorded"
+    },
+    "noCountries": "none",
+    "noYear": "not parsed",
+    "recordHeading": "Record",
+    "close": "Close",
+    "emptyField": "empty",
+    "show": "Show the records",
+    "hide": "Hide the records",
+    "closed": "Closed to begin with. The distribution above is the way into the corpus; this is the same studies in full, one row each, for finding and citing a particular one."
+  },
+  "years": {
+    "heading": "Studies by year",
+    "detail": "The corpus by year of publication, every year from the earliest in the set to the latest. Choose a year to hold the selection to it."
+  }
+}
