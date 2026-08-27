@@ -1,0 +1,15 @@
+{
+  "funnel": {
+    "heading": "From the search to the review",
+    "note": "Counted from the screening record. The last figure is the corpus this site publishes.",
+    "stages": [
+      { "key": "screened", "label": "screened", "count": 6481 },
+      { "key": "included", "label": "met the inclusion criteria", "count": 272 },
+      { "key": "analysed", "label": "analysed in the review", "count": 217 }
+    ]
+  },
+  "years": {
+    "heading": "When the field grew",
+    "note": "Every year from the earliest study in the corpus to the latest."
+  }
+}

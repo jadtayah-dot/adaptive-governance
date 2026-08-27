@@ -144,7 +144,10 @@ export function useBars(
       row.style.opacity = String(state.opacity)
 
       const count = row.querySelector<HTMLElement>('[data-part="count"]')
-      if (count) count.textContent = String(Math.round(state.count))
+      // Grouped, because the counter also runs the screening funnel, where the
+      // first figure is 6,481 and writing it as 6481 loses the separator the
+      // server rendered and the copy beside it uses.
+      if (count) count.textContent = Math.round(state.count).toLocaleString('en')
 
       const fill = row.querySelector<HTMLElement>('[data-part="fill"]')
       const erase = row.querySelector<HTMLElement>('[data-part="erase"]')

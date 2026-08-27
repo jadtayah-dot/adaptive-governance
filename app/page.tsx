@@ -1,4 +1,9 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+
+import CorpusYearsFigure, { type YearCount } from '@/components/CorpusYearsFigure'
 import GlobeStage from '@/components/GlobeStage'
+import ReviewFunnel from '@/components/ReviewFunnel'
 import { STILL_FRAMES, stillSize, type StillFrame } from '@/lib/globe-sequence'
 import globe from '@/content/globe.json'
 import home from '@/content/home.json'
@@ -62,14 +67,44 @@ function SectionLink({
   )
 }
 
+/*
+  The corpus by year, counted here rather than in the browser.
+
+  content/corpus.json is nearly half a megabyte across twenty nine fields and
+  has no business being downloaded for a chart of seventeen numbers, so it is
+  read at build time and only the counts are handed on. Read rather than
+  imported, so TypeScript does not have to infer a literal type for 217 records.
+
+  Years run continuously from the earliest in the corpus to the latest, so a
+  year the corpus does not reach is drawn empty rather than closed up.
+*/
+function yearCounts(): YearCount[] {
+  const file = path.join(process.cwd(), 'content', 'corpus.json')
+  const records = JSON.parse(readFileSync(file, 'utf8')) as { year: number | null }[]
+  const counts = new Map<number, number>()
+  for (const record of records) {
+    if (record.year === null) continue
+    counts.set(record.year, (counts.get(record.year) ?? 0) + 1)
+  }
+  const known = [...counts.keys()]
+  const from = Math.min(...known)
+  const to = Math.max(...known)
+  return Array.from({ length: to - from + 1 }, (_, i) => ({
+    year: String(from + i),
+    count: counts.get(from + i) ?? 0,
+  }))
+}
+
 export default function Home() {
+  const years = yearCounts()
+
   return (
     <div className="bg-surface text-ink">
       <Hero />
       <Studies />
       <Cases />
       <Objectives />
-      <CorpusOpening />
+      <CorpusOpening years={years} />
       <GlobeFrames />
       {/*
         The argument. One globe, pinned, with nothing over it but the sequence
@@ -188,16 +223,42 @@ function Objectives() {
   and keeps the note directly under the globe, which PRODUCT.md marks as not
   optional. The id stays on the opening so the section anchor is unchanged.
 */
-function CorpusOpening() {
+function CorpusOpening({ years }: { years: YearCount[] }) {
   const c = home.corpus
   return (
     <section id="corpus" data-above-globe
       className={`${SECTION} pb-0 md:pb-0`}>
       <h2 className={H2}>{c.heading}</h2>
-      <div className={`mt-10 space-y-6 ${PROSE}`}>
-        {c.body.map((p) => (
-          <p key={p.slice(0, 32)}>{p}</p>
-        ))}
+      {/*
+        Prose left, figures right, once there is room for both.
+
+        The measure is capped at 68 characters because that is a reading
+        measure, so on a wide screen the prose used a third of the width and
+        the rest was empty: measured at 1920, the text ended at 675 and 65
+        percent of the line was nothing. The answer is not a wider measure, it
+        is something to put beside it.
+
+        Both figures are readings of the same corpus the section is about. The
+        funnel is the three numbers the first paragraph states, as a shape. The
+        years are when this literature was written. Nothing here is decoration:
+        a visual that cannot be traced to a record does not ship.
+      */}
+      <div className="mt-10 grid gap-x-16 gap-y-12 xl:grid-cols-[minmax(0,68ch)_minmax(0,1fr)]">
+        <div className="space-y-6">
+          {c.body.map((p) => (
+            <p key={p.slice(0, 32)}>{p}</p>
+          ))}
+        </div>
+        {/*
+          A flex gap rather than space-y. The figures carry m-0 to kill the
+          browser default margin on figure, and that also cancelled the margin
+          space-y puts on the following sibling, so the two sat on top of each
+          other. A gap is not a margin and cannot be overridden by one.
+        */}
+        <div className="flex max-w-[34rem] flex-col gap-14 xl:pt-1">
+          <ReviewFunnel />
+          <CorpusYearsFigure years={years} />
+        </div>
       </div>
       {/*
         The last line before the globe itself, and it names what the globe is.
