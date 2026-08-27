@@ -113,6 +113,8 @@ export default function CorpusRanking({
           <li
             key={row.key}
             data-bar={row.key}
+            // The count the row stands for, whatever the animation is showing.
+            data-value={row.value}
             aria-hidden={hidden ? true : undefined}
             className="absolute inset-x-0 top-0"
             style={{
@@ -165,9 +167,21 @@ export default function CorpusRanking({
                   style={resting.erase}
                 />
               </span>
+              {/*
+                Two numbers, because the visible one is animated.
+
+                A block below the fold is drawn empty and grows when it is
+                scrolled to, so its visible count reads zero until then. That is
+                fine to look at and wrong to be told, so the count carried for
+                assistive technology is the real one and never moves.
+              */}
               <span className="w-7 shrink-0 text-right text-[0.8rem] tabular-nums text-ink">
-                <span data-part="count">{row.value}</span>
-                <span className="sr-only"> {unit(row.value)}</span>
+                <span data-part="count" aria-hidden="true">
+                  {row.value}
+                </span>
+                <span className="sr-only">
+                  {row.value} {unit(row.value)}
+                </span>
               </span>
             </button>
           </li>

@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef } from 'react'
 
-import { DURATION, lerp, tween } from '@/lib/corpus-motion'
+import { DURATION, lerp, prefersReducedMotion, tween } from '@/lib/corpus-motion'
 
 /**
  * A number that counts to its new value rather than swapping to it.
@@ -30,8 +30,25 @@ export default function CorpusCount({ value }: { value: number }) {
   useLayoutEffect(() => {
     if (first.current) {
       first.current = false
-      shown.current = value
-      return
+      /*
+        Run up from zero on arrival. It used to record the value and stop, so a
+        reader who never touched a filter saw nothing move.
+
+        It sits at the top of the page and is on screen from the first paint, so
+        unlike the bars it needs no help being noticed and runs straight away.
+      */
+      if (prefersReducedMotion()) {
+        shown.current = value
+        return
+      }
+      shown.current = 0
+      if (el.current) el.current.textContent = '0'
+      cancel.current = tween((t) => {
+        const at = lerp(0, value, t)
+        shown.current = at
+        if (el.current) el.current.textContent = String(Math.round(at))
+      }, DURATION)
+      return () => cancel.current()
     }
     cancel.current()
     const from = shown.current

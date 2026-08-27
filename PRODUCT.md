@@ -76,9 +76,9 @@ Stack in place: Next.js 16.3.2 with the App Router, React 19, TypeScript, Tailwi
 
 Language: English only. No Arabic locale, no RTL layout, no second type family.
 
-Corpus: the search returned 1,172 records. Screening reduced these to the 272 that met the inclusion criteria. Full text assessment against a strict definition of adaptive governance as a core concept narrowed that further, and **217 is the final tally analysed in the review**. The 217 are what the site publishes, and they carry their original identifiers from the numbered set rather than being renumbered, so the identifiers run to 274 with gaps.
+Corpus: 6,481 articles were screened, given by the project lead on 27 August 2026. 272 met the inclusion criteria. Full text assessment against a strict definition of adaptive governance as a core concept narrowed that further, and **217 is the final tally analysed in the review**. The figure of 1,172 that this record previously carried as the number the search returned is gone, because it cannot stand beside 6,481 screened, and where it belongs in the funnel has not been established. The 217 are what the site publishes, and they carry their original identifiers from the numbered set rather than being renumbered, so the identifiers run to 274 with gaps.
 
-The copy states 1,172 and 272 in section five and does not state 217. The funnel is therefore implied rather than stated, and section five needs a line that carries the final number. This is a copy change, so it waits on the user.
+Section five now states the funnel in full: 6,481 screened, 272 meeting the inclusion criteria, 217 analysed. Changed on 27 August 2026 on the project lead's instruction, in `docs/website content.md` and in the transcription at `content/home.json`.
 
 Schema is fixed: id, title, authors, year, outlet, doi, url, countries as ISO 3166 alpha 3 codes, region, themes, method, status of included or excluded, and note. A derived file maps country code to a count of included records, generated from the first file so the two cannot disagree. Records with no country are valid and are conceptual work.
 
@@ -112,7 +112,7 @@ Resolved, and settled in the copy:
 
 Undecided, and not to be invented:
 
-* A line in section five of the copy stating the 217 figure, so the funnel from 1,172 to 272 to 217 is stated rather than implied. Section twelve states 217 in the corpus link and the hero globe line now states it too, so section five is the only place the number is still absent.
+* **Where 1,172 sits, if anywhere.** It was published as the number the search returned. 6,481 is now published as the number screened, and the two cannot both be the top of the funnel. Either 1,172 is a stage between them and the copy should say which, or it is superseded. Until that is settled the site states three numbers where it used to state three, and one of the old ones is simply absent.
 * **The shell separation is absent below 1200 and a single still cannot carry it.** The static path names the three layers as a table and shows one picture of the end state. The move the argument is built on, the globe coming apart into global, regional, and national and local, is simply not there, so a reader on a tablet is told what the layers are and never shown them. The likely answer is three stills in document order, whole, separated and descended, rather than one. It belongs with the reduced motion path, which has the same problem for the same reason and is also still open: both need a sequence expressed without scroll, not a single frame standing in for one.
 * The routes `/outputs`, `/events` and `/team`. Section twelve links to all three and none exists yet, so those three links return 404 until the routes are built.
 

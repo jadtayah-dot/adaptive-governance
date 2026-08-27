@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
 
-import { DURATION, lerp, tween } from './corpus-motion'
+import { DURATION, lerp, prefersReducedMotion, tween } from './corpus-motion'
 
 /**
  * The bar behaviour shared by the ranking, the four breakdowns and the year
@@ -24,6 +24,13 @@ import { DURATION, lerp, tween } from './corpus-motion'
  * cheaper, in code and at runtime, than a hundred and thirty ref callbacks
  * rebound on every render.
  */
+
+/**
+ * How much of a block has to be on screen before its entrance plays. Low,
+ * because the ranking is taller than the viewport and would otherwise never
+ * reach a higher threshold at all.
+ */
+const ENTRANCE_VISIBLE = 0.08
 
 export type BarState = {
   /** 0 to 1 along the bar axis. */
@@ -68,6 +75,16 @@ export function useBars(
   const brushRef = useRef<Brush>(brush)
   const cancel = useRef<() => void>(() => {})
   const first = useRef(true)
+  /** Whether the entrance has played. It plays once, or not at all. */
+  const entered = useRef(false)
+  /**
+   * The targets the last real pass ran against. Null until the first one, and
+   * compared by identity, so an effect that re-ran without the data changing is
+   * ignored rather than mistaken for a selection.
+   */
+  const previous = useRef<ReadonlyMap<string, BarState> | null>(null)
+  /** The latest targets, for the entrance, which is set up once. */
+  const latest = useRef(targets)
 
   const paint = (at: ReadonlyMap<string, BarState>) => {
     const root = container.current
@@ -119,15 +136,65 @@ export function useBars(
   // A change of selection. Tweened, because the ordering and the lengths both
   // change and a jump between two rankings cannot be followed.
   useLayoutEffect(() => {
+    /*
+      An effect that ran again without the targets changing is not a selection
+      change, and must not be treated as one.
+
+      React invokes layout effects twice on mount in development. The second
+      invocation was falling through to the selection branch, which disarms the
+      entrance and plays it on the spot, so every block on the page animated
+      about a third of a second after load and none of them was on screen when
+      it did. Measured: the year strip, two thousand nine hundred pixels below
+      the fold, grew from nothing to full between 366ms and 701ms, and then sat
+      still when it was finally scrolled to.
+
+      Identity is the right test here because targets is a useMemo: it is a new
+      map when the data behind it changes and the same map when it does not.
+    */
+    latest.current = targets
+    if (previous.current === targets) return
+    const arriving = previous.current === null
+    previous.current = targets
+
     cancel.current()
 
-    // The server rendered the resting state already. Nothing animates into the
-    // position it is already in, so the first pass only records it.
-    if (first.current) {
+    /*
+      Arrival.
+
+      The first pass used to do nothing but record the state the server had
+      rendered, on the grounds that nothing should count up from nowhere on
+      load. That was wrong in practice: a reader who lands on the page and does
+      not touch a filter sees no motion at all, and reasonably concludes there
+      is none.
+
+      So the bars are drawn empty and grown, and the counts are run up from
+      zero. The emptying happens in a layout effect, which is before paint, so
+      the full length the server rendered is never on screen: without that there
+      is a frame of the answer, then a jump to nothing, then a grow back to it.
+
+      It waits for the block to be looked at rather than firing on load. The
+      ranking, the four breakdowns and the year strip are spread down a long
+      page, and an entrance that plays while a block is two screens below the
+      fold has not been seen.
+    */
+    if (arriving) {
       first.current = false
-      for (const [key, state] of targets) applied.current.set(key, state)
+
+      if (prefersReducedMotion()) {
+        for (const [key, state] of targets) applied.current.set(key, state)
+        entered.current = true
+        return
+      }
+
+      const empty = new Map<string, BarState>()
+      for (const [key, to] of targets) empty.set(key, { ...to, main: 0, count: 0 })
+      paint(empty)
       return
     }
+
+    // A selection changed before the block was ever looked at. The entrance is
+    // moot now, so it is marked spent rather than left to fire over the top.
+    entered.current = true
 
     const from = new Map(applied.current)
     /*
@@ -155,6 +222,50 @@ export function useBars(
       paint(at)
     }, DURATION)
   }, [targets]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /*
+    Arm the entrance, and play it when the block is actually looked at.
+
+    In its own effect rather than inside the one above, because that one returns
+    no cleanup for the arming and the unmount cleanup was killing it: React
+    simulates a remount on mount in development, so the observer was created,
+    disconnected, and never rebuilt. The bars sat empty and nothing ever grew
+    them. Here the setup and the teardown are the same effect, so a remount
+    re-arms.
+
+    The latest targets are read from a ref, because this runs once and the data
+    behind it changes.
+  */
+  useEffect(() => {
+    const root = container.current
+    if (!root || entered.current || prefersReducedMotion()) return
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entered.current || !entries.some((e) => e.isIntersecting)) return
+        entered.current = true
+        io.disconnect()
+        const to = latest.current
+        const from = new Map(applied.current)
+        cancel.current = tween((t) => {
+          const at = new Map<string, BarState>()
+          for (const [key, end] of to) {
+            const begin = from.get(key) ?? end
+            at.set(key, {
+              ...end,
+              main: lerp(begin.main, end.main, t),
+              count: lerp(begin.count, end.count, t),
+            })
+          }
+          paint(at)
+        }, DURATION)
+      },
+      { threshold: ENTRANCE_VISIBLE },
+    )
+    io.observe(root)
+    return () => io.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => () => cancel.current(), [])
 }

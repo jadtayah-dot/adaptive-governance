@@ -76,14 +76,18 @@ def duration_ms():
     return int(m.group(1))
 
 
+# The count on screen is animated: a block below the fold is drawn empty and
+# grows when it is scrolled to, so reading the visible number reads zero for
+# anything not yet looked at. data-value is what the row stands for, and is also
+# what a screen reader is told.
 PANELS = """
 () => {
   const out = {};
   for (const s of document.querySelectorAll('section[aria-labelledby^="breakdown-"]')) {
     const rows = {};
-    for (const li of s.querySelectorAll('li')) {
-      const sp = li.querySelectorAll('button > span > span');
-      rows[sp[0].textContent.trim()] = Number(sp[1].textContent.trim().split(' ')[0]);
+    for (const li of s.querySelectorAll('li[data-bar]')) {
+      const label = li.querySelector('button > span > span').textContent.trim();
+      rows[label] = Number(li.dataset.value);
     }
     out[s.querySelector('h3').textContent.trim()] = rows;
   }
@@ -106,7 +110,7 @@ COUNTRY_ROWS = """
     return {
       key: li.dataset.bar,
       name: sp[0].textContent.trim(),
-      value: Number(sp[2].textContent.trim().split(' ')[0]),
+      value: Number(li.dataset.value),
       // Rows below the cut stay in the DOM so the ranking can animate across
       // it, stacked on the last visible row and taken out of the accessibility
       // tree. They share a position, so nothing can be concluded from it.
@@ -128,7 +132,7 @@ YEAR_COLUMNS = """
     const track = li.querySelector('[data-part="fill"]').parentElement.getBoundingClientRect();
     return {
       key: li.dataset.bar,
-      value: Number(li.querySelector('button > span').textContent.trim() || 0),
+      value: Number(li.dataset.value),
       top: Math.round(track.top),
       bottom: Math.round(track.bottom),
       width: Math.round(li.getBoundingClientRect().width),
@@ -175,7 +179,14 @@ def headline(page):
 
 
 def ready(page):
+    """
+    Waits for the bars to be there and for the entrance to have finished.
+
+    Blocks are drawn empty and grown when they are scrolled to, so reading a
+    count too early reads a number on its way up rather than the answer.
+    """
     page.wait_for_selector("[data-bar]")
+    page.wait_for_timeout(duration_ms() + 500)
 
 
 def disclosure(page):

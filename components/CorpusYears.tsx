@@ -82,7 +82,12 @@ export default function CorpusYears({
           // to know about the gaps between the columns to reach it. Below about
           // 420 the strip overflows and its wrapper scrolls.
           return (
-            <li key={column.key} data-bar={column.key} className="min-w-6 flex-1">
+            <li
+              key={column.key}
+              data-bar={column.key}
+              data-value={column.value}
+              className="min-w-6 flex-1"
+            >
               <button
                 type="button"
                 aria-pressed={isSelected}

@@ -123,7 +123,7 @@ The evidence base
 
 **Body**
 
-The project opened with a systematic review of the adaptive governance literature. The search returned 1,172 records. Screening reduced these to 272 that met the inclusion criteria, and full text assessment narrowed that further against a strict definition of adaptive governance as a core concept rather than a passing reference.
+The project opened with a systematic review of the adaptive governance literature. 6,481 articles were screened. 272 met the inclusion criteria, and full text assessment against a strict definition of adaptive governance as a core concept rather than a passing reference narrowed those to 217, which is the final tally analysed in the review.
 
 The corpus is published here in full. Each record carries its title, authors, year, outlet, a link to the source, and the reason it was kept or excluded. You can filter by country, region, year, theme and method, and search across the set.
 

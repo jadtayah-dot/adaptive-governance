@@ -77,7 +77,7 @@ export default function CorpusBreakdown({
           const resting = restingStyle(at, brush, row.key, 'x')
           const isSelected = selected.has(row.key)
           return (
-            <li key={row.key} data-bar={row.key}>
+            <li key={row.key} data-bar={row.key} data-value={row.value}>
               <button
                 type="button"
                 aria-pressed={isSelected}
@@ -97,9 +97,15 @@ export default function CorpusBreakdown({
                   >
                     {row.label}
                   </span>
+                  {/* The visible count is animated, so the real one is
+                      carried beside it. See CorpusRanking. */}
                   <span className="shrink-0 text-[0.8rem] tabular-nums text-ink">
-                    <span data-part="count">{row.value}</span>
-                    <span className="sr-only"> {unit(row.value)}</span>
+                    <span data-part="count" aria-hidden="true">
+                      {row.value}
+                    </span>
+                    <span className="sr-only">
+                      {row.value} {unit(row.value)}
+                    </span>
                   </span>
                 </span>
                 <span className="relative mt-1 block h-3 overflow-hidden border border-rule bg-globe-land">
