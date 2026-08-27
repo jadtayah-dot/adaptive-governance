@@ -1,0 +1,24 @@
+{
+  "labels": {
+    "download": "Download the report",
+    "pages": "pages"
+  },
+  "published": [
+    {
+      "slug": "comparing-best-practices-public-sector-training",
+      "kind": "Policy report",
+      "title": "Comparing Best Practices in Public Sector Training: Qatar, Singapore and Australia",
+      "authors": ["Enjood Majed S. Al Naemi", "Evren Tok"],
+      "year": 2026,
+      "institution": "College of Public Policy, Hamad Bin Khalifa University",
+      "grant": "HBKU-INT-VPR-FRG-03-08: Visualizing Adaptive and Transformative Governance: Qatar at the Nexus of Local, Regional, Translational, and Global Change",
+      "file": "/outputs/comparing-best-practices-public-sector-training.pdf",
+      "cover": "/outputs/comparing-best-practices-public-sector-training-cover.jpg",
+      "coverAlt": "The report cover. The Doha skyline at dusk, with the title and the two authors over it.",
+      "format": "PDF",
+      "pages": 31,
+      "bytes": 9066734,
+      "summary": ""
+    }
+  ]
+}
