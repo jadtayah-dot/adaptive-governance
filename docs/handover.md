@@ -14,15 +14,17 @@ Below 1200 pixels none of that runs. The site serves a still rendered from the l
 
 Everything needs `npm run dev` running first except the palette check.
 
-    python tests/palette.py           # token contrast, fill scale ordering, dichromat separation
-    python tests/homepage.py          # copy on the page, section ids, both sides of MIN_LIVE_WIDTH
-    python "tests/globe contrast.py"  # real rendered pixels behind every passage, both widths
+    python tests/palette.py            # token contrast, gradient stops, the globe wash bound
+    python tests/homepage.py           # copy, section ids, both sides of MIN_LIVE_WIDTH,
+                                       # reduced motion, and the keyboard path to the globe
+    python tests/corpus.py             # the /corpus distribution, its preview and its selections
+    python "tests/globe contrast.py"   # rendered pixels behind every passage of the sequence
+    python "tests/page contrast.py"    # rendered pixels behind every run of copy on the page
     node "scripts/check globe still.mjs"   # also runs as prebuild
     npm run build
 
-All four pass at `6927557`.
-
-Regenerate the still whenever the corpus or the globe changes, and commit the result:
+Regenerate the three frames whenever the corpus or the globe changes, and commit
+the result. The build fails until you do:
 
     python "scripts/globe still.py"
 
@@ -38,11 +40,7 @@ Regenerate the still whenever the corpus or the globe changes, and commit the re
 
 **Grid card text has no measure.** Only prose runs are capped, so at 1920 the definition and objective cards run long lines. Cap the card text, not the container.
 
-**Reduced motion is a holding position.** It pins the sequence at its last state. `PRODUCT.md` asks for a deliberate alternative rather than a switched off version, and that is still open.
-
-**The globe is mouse only.** The canvas is `aria-hidden` and takes no focus. The keyboard path is the country index beside the globe, which reaches the same filtered views and hands the globe over on focus, and the corpus table carries the same data. That was accepted as the answer, but the canvas itself is still unreachable.
-
-**Below 1200 the shell separation is absent.** One still cannot carry it. `PRODUCT.md` records three stills in document order as the likely answer, to be built with the reduced motion path since it is the same problem.
+**The canvas itself is still unreachable.** It is `aria-hidden` and takes no focus. The country index under the globe is now ordinary page content at every width and in every mode, reachable by keyboard from the top of the document without scrolling first, and it reaches every filtered view a click reaches, which is what 2.1.1 asks for. A reader who can see the globe and not use a mouse still cannot put focus on the sphere.
 
 **`/corpus` is unstyled.** It describes itself that way on the page. It is the full record for deep use and citation and has had no design pass.
 

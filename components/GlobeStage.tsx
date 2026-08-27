@@ -10,7 +10,9 @@ import GlobeMount from './GlobeMount'
 import copy from '@/content/globe.json'
 import {
   MIN_LIVE_WIDTH,
+  STILL_FRAMES,
   SUBJECT_PRESENCE,
+  type StillFrame,
   easeOut,
   span,
   stageAt,
@@ -55,12 +57,36 @@ type Mode = 'unknown' | 'live' | 'static' | 'still'
 */
 function subscribeToWidth(onChange: () => void) {
   window.addEventListener('resize', onChange)
-  return () => window.removeEventListener('resize', onChange)
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)')
+  calm.addEventListener('change', onChange)
+  return () => {
+    window.removeEventListener('resize', onChange)
+    calm.removeEventListener('change', onChange)
+  }
 }
 
 function readMode(): Mode {
   if (new URLSearchParams(window.location.search).get('globe') === 'still') return 'still'
+  /*
+    Reduced motion takes the static path, which is the same three frames in
+    document order the narrow path gets.
+
+    It used to run the live scene and hold it at the last state with every
+    passage present at once. That is a frozen animation rather than an
+    alternative to one: the move the argument is built on was not expressed, it
+    was skipped to the end of. Three frames are that move without scroll, and
+    they are the same three frames, so there is one static path to maintain
+    rather than two.
+  */
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'static'
   return window.innerWidth >= MIN_LIVE_WIDTH ? 'live' : 'static'
+}
+
+/** Which frame the capture is for. Only ever read in the capture mode. */
+function captureFrame(): StillFrame {
+  const asked = new URLSearchParams(window.location.search).get('frame')
+  const found = STILL_FRAMES.find((f) => f.id === asked)
+  return (found ?? STILL_FRAMES[STILL_FRAMES.length - 1]).id
 }
 
 function serverMode(): Mode {
@@ -170,14 +196,13 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
   */
   const [pastRelease, setPastRelease] = useState(false)
   /*
-    Reaching the corpus panel by keyboard is a reader arriving at the globe just
-    as much as scrolling past the release is, so it hands over too. Without this
-    the panel would be focusable behind a globe that was still mid argument, or
-    it would have to be unreachable until someone scrolled, which is not a
-    keyboard path at all.
+    The handover. It used to be `pastRelease || entered`, where `entered` was set
+    when the overlay panel took focus and had no path back to false, so one
+    keyboard reader touching it froze the camera for the rest of the session.
+    The panel is ordinary page content now and does not need to hand anything
+    over, so the latch is gone with it.
   */
-  const [entered, setEntered] = useState(false)
-  const handedOver = pastRelease || entered
+  const handedOver = pastRelease
   /** The country whose records are open beside the globe. */
   const [selected, setSelected] = useState<string | null>(null)
   /** Which passages are on screen. See the note on fade above. */
@@ -195,6 +220,8 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     React render, so it cannot close over the state value.
   */
   const handedOverRef = useRef(false)
+  /** Mirrors pastRelease, so the scroll handler can tell a crossing from a hold. */
+  const releasedRef = useRef(false)
 
   useEffect(() => {
     handedOverRef.current = handedOver
@@ -232,21 +259,14 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     }
     paintRef.current = paint
 
-    // Capture mode holds the last frame of the argument and nothing else.
+    /*
+      Capture mode holds one frame of the argument and nothing else. Which one
+      comes from the address, so `scripts/globe still.py` can walk the three
+      without this file knowing anything about how they are used.
+    */
     if (mode === 'still') {
-      progress.current = 1
-      return
-    }
-
-    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (calm) {
-      /*
-        The deliberate alternative, not a switched off version: the globe holds
-        the last stage and every passage is present at once. No pin, no scrub.
-        PRODUCT.md asks for a fuller static path than this and it is still open.
-      */
-      progress.current = 1
-      paint(1)
+      const frame = STILL_FRAMES.find((f) => f.id === captureFrame())!
+      progress.current = frame.at
       return
     }
 
@@ -261,25 +281,22 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     gsap.ticker.add(raf)
     gsap.ticker.lagSmoothing(0)
 
-    /*
-      The handover fires on the crossing, not on the scroll. onLeave is the pin
-      releasing at the bottom of the globe well and onEnterBack is coming back
-      up above it; both are called once each way. onRefresh covers arriving with
-      the page already scrolled past the release, and a resize that moves it.
-    */
-    const syncHandover = (self: ScrollTrigger) => setPastRelease(self.progress >= 1)
 
     const trigger = ScrollTrigger.create({
       trigger: container.current,
       start: 'top top',
-      end: 'bottom bottom',
+      /*
+        One viewport short of the container bottom, because the container ends
+        with a held screen the sequence does not use. The sequence has to finish
+        when the well fills the frame; the hold after it is where the globe is
+        handed over, at full strength, with nothing else on screen to fade for.
+        See GlobeHold in app/page.tsx.
+      */
+      end: () => `bottom bottom-=${window.innerHeight}`,
       onUpdate: (self) => {
         progress.current = self.progress
         paint(self.progress)
       },
-      onLeave: syncHandover,
-      onEnterBack: syncHandover,
-      onRefresh: syncHandover,
     })
 
     paint(0)
@@ -311,8 +328,28 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       const stageEl = layer.current
       if (!el || !stageEl) return
       const box = el.getBoundingClientRect()
-      const { presence: p, strength } = stageAt(box.top, box.bottom, window.innerHeight)
+      const vh = window.innerHeight
+      /*
+        The handover, from the rectangle rather than from a ScrollTrigger
+        callback.
+
+        It used to hang off onLeave, which fires when the trigger's end is
+        passed, and moving that end to make room for the hold silently stopped
+        it firing at all: the globe was never handed over and never took a
+        pointer event. Geometry cannot drift out from under itself like that.
+        The sequence is finished once the container has no more than the held
+        screen left below the fold, and it stays finished for the rest of the
+        page. Scrolling back above it flips this and the camera walks back.
+      */
+      const finished = box.bottom <= 2 * vh
+      if (finished !== releasedRef.current) {
+        releasedRef.current = finished
+        setPastRelease(finished)
+      }
+
+      const { presence: p, strength } = stageAt(box.top, box.bottom, vh)
       presence.current = p
+
       stageEl.style.transform = stageTransform(p)
       stageEl.style.opacity = stageOpacity(strength).toFixed(3)
       /*
@@ -404,6 +441,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
           behind the whole page, and it is only ever reached once the scroll
           driver is running and can set the strength presence asks for.
         */
+        data-globe-live={capturing ? undefined : ''}
         className={
           capturing
             ? 'fixed inset-0 z-50 bg-surface'
@@ -411,7 +449,6 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
                 // z-0 and every section above it: the globe is behind the page,
                 // not over it. See the [data-above-globe] rule in globals.css.
                 'sticky top-0 z-0 h-screen w-full origin-center overflow-hidden',
-                'max-[1199px]:hidden',
                 handedOver ? 'pointer-events-auto' : 'pointer-events-none',
               ].join(' ')
         }
@@ -443,45 +480,31 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       </div>
 
       {/*
-        The corpus, beside the globe. It rides with the sticky layer, so it
-        comes to rest in the well exactly where the globe does, and it is
-        ordinary DOM rather than an overlay: real buttons, real links, in
-        reading order. Hidden while the argument is still running, because
-        there is nothing to choose from yet.
+        The corpus index, in the document under the globe.
+
+        Ordinary page content at every width and in every mode, because it is
+        the keyboard path to a globe that is navigation. As an overlay it was
+        above 1200 only and focusable only once the reader had scrolled to the
+        handover, which is not a keyboard path at all.
+
+        The cost is that a click on the map shows its records below the fold
+        rather than beside the sphere. The map still answers the click on its
+        own: the chosen country keeps the accent outline.
       */}
-      {capturing || mode !== 'live' ? null : (
-        <div
-          data-globe-companion=""
-          aria-hidden={handedOver ? undefined : true}
-          /*
-            Pinned to the last screen of the container, which is the well the
-            globe comes to rest in. Absolute rather than sticky: a sticky panel
-            carries on down the page over the roadmap and the team, which is
-            what it did.
-          */
-          className={[
-            'pointer-events-none absolute inset-x-0 bottom-0 z-40 h-screen max-[1199px]:hidden',
-            'flex justify-end',
-            handedOver ? '' : 'invisible',
-          ].join(' ')}
-        >
-          <div className="h-full w-[26rem] max-w-[34%]">
-            <CorpusPanel
-              country={selected}
-              onSelect={setSelected}
-              onClear={() => setSelected(null)}
-              onEnter={() => setEntered(true)}
-            />
-          </div>
-        </div>
-      )}
+      <div className="relative z-10 w-full px-6 pb-4 md:px-10 2xl:px-16">
+        <CorpusPanel
+          country={selected}
+          onSelect={setSelected}
+          onClear={() => setSelected(null)}
+        />
+      </div>
 
       {/*
         The passages, fixed to the viewport and last in paint order so the well
         frame passes behind them rather than through them.
       */}
       {capturing ? null : (
-        <div className="pointer-events-none fixed inset-0 z-40 max-[1199px]:hidden">
+        <div data-globe-live className="pointer-events-none fixed inset-0 z-40">
           {SLOTS.map((slot) => (
             <div key={slot.at} className={`absolute flex flex-col gap-6 ${slot.at}`}>
               {slot.items.map((passage) =>

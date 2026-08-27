@@ -36,7 +36,7 @@ Every value is checked by `tests/palette.py`, which reads the tokens out of `glo
 | Token | Value | On surface | On raised | Use |
 |---|---|---|---|---|
 | `--ag-surface` | `#ffffff` | | | Light stop of the page gradient. The university's. |
-| `--ag-surface-deep` | `#f5f6f8` | | | Dark stop. Asked for on 26 August 2026: a wash rather than a flat white, held to the viewport. |
+| `--ag-surface-deep` | `#f1f3f6` | | | Dark stop. Asked for on 26 August 2026: a wash rather than a flat white, held to the viewport. |
 | `--ag-surface-raised` | `#edeeee` | | | Cards, grid cells, and the globe's sphere |
 | `--ag-ink` | `#151515` | 18.26:1 | 15.71:1 | Body and headings |
 | `--ag-ink-muted` | `#515966` | 7.07:1 | 6.08:1 | Metadata, labels, roadmap dates |
@@ -189,13 +189,41 @@ It was briefly a small card docked in a corner instead. That needed a gutter dow
 
 **Every section paints above it**, through `[data-above-globe]` in `globals.css`. Without it the sections that come before the globe stage in the document would sit under a fixed layer and the hero would be covered.
 
+**The wash is as dark as the globe allows.** The binding constraint is not the page, it is `--ag-globe-fill-min`: a country holding one study, and only 3.37:1 on white to begin with. Every step the ground darkens comes out of that. At `#f1f3f6` the fill needs 3.33:1 to clear the 3:1 non text minimum and it has 3.37:1. One stop darker and both it and `--ag-accent-dim` fail. Going further means darkening the fill scale, which changes how the data reads, or darkening the university's own blue, and both are the project lead's call.
+
 **There is no scrim.** The margin layout needed one and `--ag-globe-scrim` was deleted with it. What replaces it is a bound: `BACKGROUND_OPACITY` is set so that the darkest colour the globe can draw, composited at that opacity over the darkest stop of the page gradient, still clears 4.5:1 for every text token. `tests/palette.py` carries that bound and `tests/page contrast.py` measures the real pixels behind every run of copy at fine steps across the approach and the departure, at both widths.
+
+**There is a held screen after the well.** The globe becomes interactive at the handover, which fires when the sequence reaches its end, and its strength falls as soon as the section below starts to show. Those two were eighty pixels apart: measured, the globe was both live and visible across about sixty pixels of scrolling, which is why it read as not interactive at all. `GlobeHold` in `app/page.tsx` is a viewport height of nothing after the well, and the sequence now finishes one screen before the container does, so there is a full screen in which the globe is at full strength, takes pointer input, and has nothing behind it. Measured again: a thousand pixels.
+
+The handover is read off the container rectangle rather than a ScrollTrigger callback. It used to hang off `onLeave`, and moving the trigger end to make room for the hold silently stopped it firing at all. Geometry cannot drift out from under itself that way.
+
+**The corpus panel rides with the globe**, on the same two conditions the globe takes pointer input on, so it arrives and leaves with it. It was absolute against the last screen of the container, which put it half off the bottom of the viewport for exactly the stretch where the globe had just become usable.
 
 **Pointer input belongs to the globe only while it is prominent**, at `SUBJECT_PRESENCE` and above. Hover gives a country name and its study count, and a click filters the corpus. In practice the content layer settles it too: every section takes its own pointer events, so only section five, whose runway and well are empty and transparent to the pointer, ever hands them through.
 
 **At the handover the pin releases**, the camera returns to a whole globe over 800ms, the passages clear, and the globe becomes interactive and stays interactive for the rest of the page. Hover gives a country name and study count, and a click filters the corpus. Countries the corpus does not reach are not clickable and are not dressed as though they were: no highlight, no pointer cursor, and the tooltip says the corpus holds none.
 
-Still open: the reduced motion path, which holds the sequence at its last state rather than being the deliberate alternative PRODUCT.md asks for, and the keyboard path to the globe, which does not exist.
+## The argument without scroll
+
+Below 1200, and under prefers reduced motion at any width, there is no scroll to drive anything. Both get the same thing: three frames in document order, each with the copy that arrives over the globe at that moment on the live path.
+
+**Whole, separated, descended.** The positions are `STILL_FRAMES` in `lib/globe-sequence.ts` and the pictures are rendered from the running scene by `scripts/globe still.py`. Nothing is drawn by hand, and `scripts/check globe still.mjs` fails the build if the corpus moves on without them or if a frame named in the sequence has never been rendered.
+
+It was one still of the end state and a table of the three layer names. That is not a quieter version of the argument: the move it is built on, the globe coming apart and then being descended into, was absent, so a reader was told what the layers were and never shown them.
+
+**Only the descent is cropped.** The still is served at about a third of the width the live scene has, and uncropped, Qatar comes out around fifteen pixels on a phone. The other two must not be: the shells travel to 1.5 radii and the sphere is 0.88 of the frame height, so the dissection is wider than the frame is tall, and cropping it square threw both shells away and left a close up of west Africa. That happened, and it is why the crop is per frame data rather than one constant.
+
+**Which path runs is one CSS rule**, `(max-width: 1199px), (prefers-reduced-motion: reduce)` in `globals.css`, keyed on `[data-globe-live]` and `[data-globe-static]`. `readMode` in `GlobeStage.tsx` answers the same two questions for the scene itself. They have to agree, so they are written once each and `tests/homepage.py` checks both sides plus the reduced motion path.
+
+## The keyboard path
+
+The globe is navigation, so WCAG 2.1.1 binds. The country index is ordinary page content under the globe, at every width and in every mode: a real list of real buttons carrying the same counts the polygons carry and reaching the same filtered views a click reaches. Choosing one is announced through a `role="status"` region, because the globe, the counts and the records are all somewhere other than the button that was pressed.
+
+It used to be an overlay beside the sphere. That existed above 1200 only, and only once the reader had scrolled to the handover, so it was not focusable until then and not present at all on a phone. `tests/homepage.py` now tabs from the top of the document at both widths and fails if the first country is not reached.
+
+The cost is that a click on the map shows its records below the fold rather than beside the sphere. The map still answers the click on its own: the chosen country keeps the accent outline.
+
+Still open: the canvas itself is `aria-hidden` and takes no focus. The index is the path to everything the canvas offers, which is what 2.1.1 asks for, but a reader who can see the globe and not use a mouse still cannot put focus on it.
 
 ## Copy rules that constrain design
 

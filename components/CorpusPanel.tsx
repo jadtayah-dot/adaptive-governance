@@ -8,7 +8,7 @@ import summary from '@/content/corpus summary.json'
 import copy from '@/content/globe.json'
 
 /*
-  The corpus, on the homepage, beside the globe.
+  The corpus, on the homepage, under the globe.
 
   Clicking a country used to leave for /corpus. Now the records open here and
   the globe stays live, so choosing another country is one click rather than a
@@ -16,10 +16,16 @@ import copy from '@/content/globe.json'
   record lives: every field, citable, linked from under this list and from the
   navigation. This is a summary, five fields, and it says so.
 
-  It is also the keyboard path to the globe. The country index is a real list of
-  real buttons carrying the same counts the polygons carry and reaching the same
-  filtered views, so the globe is not the only way in. That was recorded as an
-  open item against the globe well and this closes it.
+  It is the keyboard path to the globe, and that is why it is ordinary page
+  content at every width rather than an overlay beside the sphere. As an overlay
+  it existed only above 1200 and only once the reader had scrolled to the
+  handover, so it was not focusable until then and not present at all on a
+  phone: a globe that is navigation, with no way in but a pointer. WCAG 2.1 AA
+  is binding and that was a plain failure of 2.1.1.
+
+  Every entry is a real button carrying the same count the polygon carries and
+  reaching the same filtered view a click reaches. Choosing one is announced,
+  because the thing that changed is somewhere else on the page.
 
   The records ship as content/corpus summary.json, five fields rather than the
   twenty nine in content/corpus.json, which is nearly half a megabyte and has no
@@ -49,11 +55,9 @@ export interface CorpusPanelProps {
   country: string | null
   onSelect: (code: string) => void
   onClear: () => void
-  /** Focusing anything here is a reader arriving at the globe by keyboard. */
-  onEnter: () => void
 }
 
-export default function CorpusPanel({ country, onSelect, onClear, onEnter }: CorpusPanelProps) {
+export default function CorpusPanel({ country, onSelect, onClear }: CorpusPanelProps) {
   const c = copy.panel
   const shown = useMemo(
     () => (country ? RECORDS.filter((r) => r.countries.includes(country)) : []),
@@ -64,11 +68,17 @@ export default function CorpusPanel({ country, onSelect, onClear, onEnter }: Cor
   const label = (n: number) => `${n} ${n === 1 ? copy.tooltip.study : copy.tooltip.studies}`
 
   return (
-    <section
-      aria-label={c.label}
-      onFocusCapture={onEnter}
-      className="pointer-events-auto flex h-full flex-col border-l border-rule bg-surface/95 backdrop-blur-sm"
-    >
+    <section aria-label={c.label} className="border border-rule bg-surface">
+      {/*
+        What changed, for anyone not looking at it. The globe, the counts and
+        the records are all somewhere other than the control that was just
+        pressed, so the selection is announced rather than left to be noticed.
+        Both states use copy that is already on the page.
+      */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {country ? `${label(COUNTS[country] ?? 0)} ${name(country)}` : c.indexHeading}
+      </p>
+
       {country ? (
         <>
           <header className="border-b border-rule px-6 py-5">
@@ -83,7 +93,7 @@ export default function CorpusPanel({ country, onSelect, onClear, onEnter }: Cor
             </button>
           </header>
 
-          <ol className="min-h-0 flex-1 overflow-y-auto">
+          <ol className="max-h-[60vh] overflow-y-auto">
             {shown.map((r) => (
               <li key={r.id} className="border-b border-rule px-6 py-4">
                 <p className="text-[0.95rem] leading-snug">
@@ -123,7 +133,7 @@ export default function CorpusPanel({ country, onSelect, onClear, onEnter }: Cor
             <p className="mt-2 text-[0.85rem] leading-relaxed text-ink-muted">{c.indexDetail}</p>
           </header>
 
-          <ul className="min-h-0 flex-1 overflow-y-auto">
+          <ul className="max-h-[60vh] overflow-y-auto">
             {INDEX.map(([code, n]) => (
               <li key={code}>
                 <button

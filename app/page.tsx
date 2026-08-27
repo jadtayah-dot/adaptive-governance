@@ -1,4 +1,5 @@
 import GlobeStage from '@/components/GlobeStage'
+import { STILL_FRAMES, stillSize, type StillFrame } from '@/lib/globe-sequence'
 import globe from '@/content/globe.json'
 import home from '@/content/home.json'
 
@@ -69,7 +70,7 @@ export default function Home() {
       <Cases />
       <Objectives />
       <CorpusOpening />
-      <GlobeLayers />
+      <GlobeFrames />
       {/*
         The argument. One globe, pinned, with nothing over it but the sequence
         naming itself. It sits inside section five, where the copy puts the
@@ -83,6 +84,7 @@ export default function Home() {
       <GlobeStage>
         <GlobeRunway />
         <GlobeWell />
+        <GlobeHold />
       </GlobeStage>
       <CorpusEvidence />
       <Roadmap />
@@ -209,34 +211,82 @@ function CorpusOpening() {
 }
 
 /*
-  The three layers of the argument, as ordinary page content.
+  The argument, without scroll.
 
-  Below MIN_LIVE_WIDTH the live scene does not run, so there is no exploded
-  diagram to annotate and no overlay to annotate it with. The same copy appears
-  here instead, in document order, ahead of the still it describes. On the live
-  path this is hidden and the annotations arrive over the globe as each shell
-  detaches.
+  Three frames in document order, each with the copy that arrives over the globe
+  at that moment on the live path. This is what a reader below MIN_LIVE_WIDTH
+  gets, and what a reader who has asked for reduced motion gets at any width.
+
+  It used to be a table of the three layer names and one still of the end state.
+  That is not a quieter version of the argument: the move it is built on, the
+  globe coming apart and then being descended into, was absent, so a reader was
+  told what the layers were and never shown them.
+
+  The pictures come out of the running scene, at the positions in STILL_FRAMES,
+  by `scripts/globe still.py`. Nothing here is drawn by hand and the build fails
+  if the corpus moves on without them.
 */
-function GlobeLayers() {
+function GlobeFrames() {
   const c = globe
   return (
-    <div className="w-full px-6 pt-16 md:px-10 2xl:px-16 min-[1200px]:hidden">
-      <dl className="grid border-t border-l border-rule sm:grid-cols-3">
-        {c.shells.map((shell) => (
-          <div key={shell.id} className="border-r border-b border-rule bg-surface-raised p-6">
-            <dt className="font-mono text-[0.9rem] text-accent">{shell.label}</dt>
-            <dd className="mt-2 text-[0.9rem] leading-relaxed text-ink-muted">{shell.gloss}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className={`mt-10 border-l-2 border-l-accent pl-4 leading-relaxed ${PROSE}`}>
-        {c.descentNote}
-      </p>
-      {/* The second colour, marking evidence this project is creating. */}
-      <p className={`mt-4 border-l-2 border-l-globe-project pl-4 leading-relaxed ${PROSE}`}>
-        {c.nodesNote}
-      </p>
+    <div data-globe-static className="w-full px-6 pt-16 md:px-10 2xl:px-16">
+      <ol className="space-y-16">
+        <li>
+          <GlobeFrame id="whole" alt={c.stillAlt.whole} />
+          <p className={`mt-6 border-l-2 border-l-accent pl-4 leading-relaxed ${PROSE}`}>
+            {c.openingNote}
+          </p>
+        </li>
+
+        <li>
+          <GlobeFrame id="separated" alt={c.stillAlt.separated} />
+          {/* The three layers the frame above has just pulled apart. */}
+          <dl className="mt-6 grid border-t border-l border-rule sm:grid-cols-3">
+            {c.shells.map((shell) => (
+              <div key={shell.id} className="border-r border-b border-rule bg-surface-raised p-6">
+                <dt className="font-mono text-[0.9rem] text-accent">{shell.label}</dt>
+                <dd className="mt-2 text-[0.9rem] leading-relaxed text-ink-muted">{shell.gloss}</dd>
+              </div>
+            ))}
+          </dl>
+        </li>
+
+        <li>
+          <GlobeFrame id="descended" alt={c.stillAlt.descended} />
+          <p className={`mt-6 border-l-2 border-l-accent pl-4 leading-relaxed ${PROSE}`}>
+            {c.descentNote}
+          </p>
+          {/* The second colour, marking evidence this project is creating. */}
+          <p className={`mt-4 border-l-2 border-l-globe-project pl-4 leading-relaxed ${PROSE}`}>
+            {c.nodesNote}
+          </p>
+        </li>
+      </ol>
     </div>
+  )
+}
+
+/*
+  One frame. Square, because the renderer crops square around the camera target,
+  and bordered, because a square picture of a sphere on a page needs an edge to
+  read as a figure rather than as a stray graphic.
+
+  Served as a plain img with explicit dimensions rather than through next/image,
+  which is the rule the portraits already follow: at this size the optimizer
+  buys nothing and its lazy loading did not resolve reliably.
+*/
+function GlobeFrame({ id, alt }: { id: StillFrame; alt: string }) {
+  const frame = STILL_FRAMES.find((f) => f.id === id)!
+  const size = stillSize(frame.crop)
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={`/globe-still-${id}.png`}
+      alt={alt}
+      width={size.width}
+      height={size.height}
+      className="block w-full border border-rule bg-surface"
+    />
   )
 }
 
@@ -248,8 +298,22 @@ function GlobeLayers() {
   each span of the sequence. Empty by design. Below MIN_LIVE_WIDTH nothing is
   pinned and this would be four screens of nothing, so it is not there at all.
 */
+/*
+  A viewport height after the sequence ends and before anything else appears.
+
+  The globe becomes interactive at the handover, which fires when the sequence
+  reaches its end, and its strength falls as soon as the section below starts to
+  show. Without this those two are eighty pixels apart: measured, the globe was
+  both live and visible across about sixty pixels of scrolling, which is why it
+  read as not interactive at all. This is the room to use it. It holds nothing,
+  so nothing is behind the globe while the reader turns it.
+*/
+function GlobeHold() {
+  return <div aria-hidden="true" data-globe-live className="h-screen w-full" />
+}
+
 function GlobeRunway() {
-  return <div aria-hidden="true" className="h-[400vh] w-full max-[1199px]:hidden" />
+  return <div aria-hidden="true" data-globe-live className="h-[400vh] w-full" />
 }
 
 /*
@@ -272,27 +336,13 @@ function GlobeRunway() {
 */
 function GlobeWell() {
   return (
-    <div className="w-full px-6 pt-16 md:px-10 2xl:px-16">
+    <div data-globe-live className="w-full px-6 pt-16 md:px-10 2xl:px-16">
       {/*
-        A viewport height well on the live path, because that is the box the
-        pinned layer comes to rest in. On the static path it is square, to the
-        still it holds: a viewport height frame around a square image on a phone
-        is mostly empty frame.
+        The box the pinned layer comes to rest in. It carries no picture any
+        more: the static path is three frames of its own, further up the page,
+        and this is only the shape the live scene settles into.
       */}
-      <div
-        id="globe"
-        data-testid="globe-placeholder"
-        className="aspect-square w-full border border-rule min-[1200px]:aspect-auto min-[1200px]:h-screen min-[1200px]:border-0"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/globe-still.png"
-          alt={globe.stillAlt}
-          width={880}
-          height={880}
-          className="h-full w-full object-contain min-[1200px]:hidden"
-        />
-      </div>
+      <div id="globe" data-testid="globe-placeholder" className="h-screen w-full" />
     </div>
   )
 }

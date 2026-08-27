@@ -31,6 +31,60 @@ export interface Pose {
  */
 export const MIN_LIVE_WIDTH = 1200
 
+/**
+ * The three frames the static path serves instead of the sequence.
+ *
+ * Below MIN_LIVE_WIDTH, and under prefers reduced motion, there is no scroll to
+ * drive anything. What was served was one still of the end state and a table of
+ * the three layer names, which is not a quieter version of the argument: the
+ * move the argument is built on, the globe coming apart and then being descended
+ * into, was simply absent. Three frames in document order are that move
+ * expressed without scroll.
+ *
+ * `at` is a position in the sequence, so these are rendered from the same scene
+ * the wide path runs, by `scripts/globe still.py`. Nothing here is drawn by
+ * hand. Change one of these numbers and the picture changes with it.
+ */
+/**
+ * What the frames are rendered at. The live path's shape, deliberately: the
+ * sphere is framed against the viewport height, so a square canvas gives a
+ * different composition from the one a reader on the live path sees.
+ */
+export const STILL_RENDER = { width: 1440, height: 900 }
+
+/**
+ * `crop` is the side of a centred square kept from the render, or 0 to keep the
+ * whole frame.
+ *
+ * Only the descent is cropped, and only because it has to be. The still is
+ * served at about a third of the width the live scene has, and uncropped, Qatar
+ * comes out around fifteen pixels on a phone and the outline the whole descent
+ * is built around cannot be seen. The crop is centred on the camera target,
+ * which is Doha, so it is still the scene rather than a composition.
+ *
+ * The other two must not be cropped. The shells travel to 1.5 radii and the
+ * sphere is 0.88 of the frame height, so the dissection is wider than the frame
+ * is tall: cropping it square threw both shells away and left a close up of
+ * west Africa, which is a picture of nothing the caption is talking about.
+ */
+export const STILL_FRAMES = [
+  /** Bare sphere, countries raised and lit by count. */
+  { id: 'whole', at: 0.1, crop: 0 },
+  /** Both shells out, at the end of the dissection and before the descent. */
+  { id: 'separated', at: 0.42, crop: 0 },
+  /** Over Doha, extrusion flat, Qatar outlined and empty, the five nodes up. */
+  { id: 'descended', at: 0.95, crop: 880 },
+] as const
+
+export type StillFrame = (typeof STILL_FRAMES)[number]['id']
+
+/** The pixel size a frame is written at, so the page can size the img. */
+export function stillSize(crop: number) {
+  return crop > 0
+    ? { width: crop, height: crop }
+    : { width: STILL_RENDER.width, height: STILL_RENDER.height }
+}
+
 /** Span boundaries. Keep these in one place: the labels are timed against them. */
 export const PHASE = {
   whole: [0.0, 0.2],

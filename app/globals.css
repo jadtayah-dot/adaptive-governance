@@ -26,7 +26,21 @@
     is now the worse of: tests/palette.py checks text against both stops and
     fails on whichever is tighter.
   */
-  --ag-surface-deep: #f5f6f8;
+  /*
+    This is as far as the wash goes without moving something else.
+
+    The binding constraint is the globe, not the page: --ag-globe-fill-min is a
+    country holding one study and it is only 3.37:1 on white, so every step the
+    ground darkens is taken out of that. At this stop the fill needs 3.33:1 to
+    clear the 3:1 non text minimum and it has 3.37:1. One stop darker and both
+    the fill and --ag-accent-dim fail.
+
+    Going further means darkening the fill scale, which changes how the data
+    reads, or darkening --ag-accent-dim, which is the university's own blue and
+    is kept at its published value on purpose. Both are decisions for the
+    project lead rather than for this file.
+  */
+  --ag-surface-deep: #f1f3f6;
   --ag-surface-raised: #edeeee;
   --ag-ink: #151515;
   --ag-ink-muted: #515966;
@@ -141,6 +155,31 @@ body {
 [data-above-globe] {
   position: relative;
   z-index: 10;
+}
+
+/*
+  Which path the argument takes.
+
+  Two conditions, one rule, because they have to agree: below the live width
+  there is no room to run the scene, and a reader who has asked for reduced
+  motion should not be given a scrubbed one. Both get the same three frames in
+  document order. `readMode` in components/GlobeStage.tsx answers the same two
+  questions for the scene itself, and tests/homepage.py checks both sides.
+
+  In CSS rather than in a Tailwind variant so the pair is written once, and
+  after the utilities import so it settles any conflict on source order without
+  reaching for !important.
+*/
+@media (max-width: 1199px), (prefers-reduced-motion: reduce) {
+  [data-globe-live] {
+    display: none;
+  }
+}
+
+@media (min-width: 1200px) and (prefers-reduced-motion: no-preference) {
+  [data-globe-static] {
+    display: none;
+  }
 }
 
 :focus-visible {

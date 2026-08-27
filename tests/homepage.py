@@ -54,6 +54,24 @@ def min_live_width():
 
 MIN_LIVE_WIDTH = min_live_width()
 
+
+def still_frames():
+    """
+    The frames the static path serves, read out of lib/globe-sequence.ts. Adding
+    one there is enough for this to start requiring it.
+    """
+    with open(os.path.join(ROOT, "lib", "globe-sequence.ts"), encoding="utf-8") as f:
+        block = re.search(r"STILL_FRAMES\s*=\s*\[(.*?)\n\]", f.read(), re.S)
+    if not block:
+        raise SystemExit("could not find STILL_FRAMES in lib/globe-sequence.ts")
+    ids = re.findall(r"id:\s*'([a-z]+)'", block.group(1))
+    if not ids:
+        raise SystemExit("STILL_FRAMES parsed as empty")
+    return ids
+
+
+STILL_FRAMES = still_frames()
+
 SECTION_IDS = [
     "hero",
     "studies",
@@ -116,7 +134,7 @@ def check_breakpoint(browser, problems, notes):
                 page.wait_for_timeout(4000)
 
             canvases = page.locator("canvas").count()
-            still = page.locator('#globe img[src="/globe-still.png"]:visible').count()
+            still = page.locator('img[src^="/globe-still-"]:visible').count()
 
             if live:
                 if canvases == 0:
@@ -124,22 +142,121 @@ def check_breakpoint(browser, problems, notes):
                         f"[{label}] no live scene at MIN_LIVE_WIDTH, the live path does not start here"
                     )
                 if still != 0:
-                    problems.append(f"[{label}] the still is served at MIN_LIVE_WIDTH")
+                    problems.append(
+                        f"[{label}] {still} static frame(s) served at MIN_LIVE_WIDTH"
+                    )
             else:
                 if canvases != 0:
                     problems.append(
                         f"[{label}] {canvases} canvas element(s) one pixel below "
                         "MIN_LIVE_WIDTH, the live scene runs too low"
                     )
-                if still != 1:
+                if still != len(STILL_FRAMES):
                     problems.append(
-                        f"[{label}] the still is not served one pixel below MIN_LIVE_WIDTH"
+                        f"[{label}] {still} frame(s) one pixel below MIN_LIVE_WIDTH, "
+                        f"not the {len(STILL_FRAMES)} the sequence lists"
                     )
 
             notes.append(
                 f"[{label}] {'live' if live else 'static'} path: "
                 f"{canvases} canvas, {still} still"
             )
+        finally:
+            page.close()
+
+
+def check_reduced_motion(browser, problems, notes):
+    """
+    A reader who asks for reduced motion gets the same three frames, at any
+    width.
+
+    It used to run the live scene at full width and hold it at the last state
+    with every passage present at once, which is a frozen animation rather than
+    an alternative to one. What is asserted here is that the scene is not built
+    at all, that all three frames are served in order, and that the country
+    index is there, because that path has no globe to click.
+    """
+    page = browser.new_page(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+    try:
+        page.goto(URL)
+        page.wait_for_load_state("networkidle")
+        # Long enough that a scene that was going to mount would have.
+        page.wait_for_timeout(4000)
+
+        canvases = page.locator("canvas").count()
+        if canvases:
+            problems.append(
+                f"[calm] {canvases} canvas element(s) under reduced motion, "
+                "so the live scene still runs"
+            )
+
+        shown = []
+        for frame in STILL_FRAMES:
+            img = page.locator(f'img[src="/globe-still-{frame}.png"]')
+            if img.count() == 0 or not img.first.is_visible():
+                problems.append(f"[calm] the {frame} frame is not served under reduced motion")
+                continue
+            box = img.first.bounding_box()
+            if box:
+                shown.append((frame, box["y"]))
+        order = [f for f, _ in sorted(shown, key=lambda r: r[1])]
+        if order != STILL_FRAMES[: len(order)]:
+            problems.append(f"[calm] the frames are in the order {order}, not {STILL_FRAMES}")
+
+        index = page.locator("section[aria-label] ul button").count()
+        if index == 0:
+            problems.append("[calm] the country index is missing, so there is no way into the globe")
+
+        notes.append(f"[calm] {canvases} canvas, {order}, {index} countries in the index")
+    finally:
+        page.close()
+
+
+def check_keyboard(browser, problems, notes):
+    """
+    The globe is navigation, so there has to be a keyboard path to it that does
+    not depend on having scrolled anywhere.
+
+    The index used to be an overlay beside the sphere, above 1200 only and
+    invisible until the reader had scrolled to the handover, so it was neither
+    reachable nor present on a phone. This tabs from the top of the document and
+    fails if the first country is not reached, at both widths.
+    """
+    for width in (1440, 390):
+        page = browser.new_page(viewport={"width": width, "height": 900})
+        try:
+            page.goto(URL)
+            page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2500)
+
+            first = page.locator("section[aria-label] ul button").first
+            if first.count() == 0:
+                problems.append(f"[{width}] no country index on the page at all")
+                continue
+
+            # The index has to be reachable without a pointer and without
+            # scrolling first. Tab until it is focused or the budget runs out.
+            reached = False
+            for _ in range(140):
+                page.keyboard.press("Tab")
+                if first.evaluate("(el) => el === document.activeElement"):
+                    reached = True
+                    break
+            if not reached:
+                problems.append(
+                    f"[{width}] the country index is not reachable by keyboard from the top"
+                )
+                continue
+
+            label = (first.inner_text() or "").replace("\n", " ").strip()
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(600)
+
+            announced = page.locator('section[aria-label] [role="status"]').first
+            said = (announced.text_content() or "").strip() if announced.count() else ""
+            if not said:
+                problems.append(f"[{width}] choosing a country announced nothing")
+            notes.append(f"[{width}] keyboard reached {label!r}, announced {said!r}")
         finally:
             page.close()
 
@@ -175,29 +292,53 @@ def main():
             #    MIN_LIVE_WIDTH, where the live scene does not run at all.
             live = width >= MIN_LIVE_WIDTH
             globe = page.locator("#globe")
-            if globe.count() == 0:
-                problems.append(f"[{label}] the globe block is missing")
-            else:
-                box = globe.bounding_box()
-                if box is None:
-                    problems.append(f"[{label}] the globe block has no box")
-                elif live:
-                    if abs(box["height"] - height) > 2:
-                        problems.append(
-                            f"[{label}] globe block height {box['height']:.0f} is not the viewport height {height}"
-                        )
+            if live:
+                if globe.count() == 0:
+                    problems.append(f"[{label}] the globe well is missing on the live path")
                 else:
-                    if abs(box["height"] - box["width"]) > 2:
+                    box = globe.bounding_box()
+                    if box is None:
+                        problems.append(f"[{label}] the globe well has no box")
+                    elif abs(box["height"] - height) > 2:
                         problems.append(
-                            f"[{label}] globe block is {box['width']:.0f} by {box['height']:.0f}, not square"
+                            f"[{label}] globe well height {box['height']:.0f} is not the viewport height {height}"
                         )
-                if normalise(globe.inner_text()) != "":
-                    problems.append(f"[{label}] the globe block is not empty")
+                    if normalise(globe.inner_text()) != "":
+                        problems.append(f"[{label}] the globe well is not empty")
+
+            # 2a. the static path is the argument as three frames in document
+            #     order, not one still of the end state. Each has to be present,
+            #     visible, in the order the sequence puts them, and carry alt
+            #     text: they are the whole of the argument for a reader who
+            #     never sees the scene.
+            if not live:
+                seen = []
+                for frame in STILL_FRAMES:
+                    img = page.locator(f'img[src="/globe-still-{frame}.png"]')
+                    if img.count() == 0:
+                        problems.append(f"[{label}] the {frame} frame is missing")
+                        continue
+                    if not img.first.is_visible():
+                        problems.append(f"[{label}] the {frame} frame is not visible")
+                    alt = (img.first.get_attribute("alt") or "").strip()
+                    if len(alt) < 20:
+                        problems.append(
+                            f"[{label}] the {frame} frame has no useful alt text: {alt!r}"
+                        )
+                    box = img.first.bounding_box()
+                    if box:
+                        seen.append((frame, box["y"]))
+                order = [f for f, _ in sorted(seen, key=lambda r: r[1])]
+                if order != STILL_FRAMES[: len(order)]:
+                    problems.append(
+                        f"[{label}] the frames are in the order {order}, not {STILL_FRAMES}"
+                    )
+                notes.append(f"[{label}] static path: {len(seen)} frames, {order}")
 
             # 2b. exactly one path runs. The live scene must not be built below
             #     MIN_LIVE_WIDTH, and the still must not be served above it.
             canvases = page.locator("canvas").count()
-            still = page.locator('#globe img[src="/globe-still.png"]:visible').count()
+            still = page.locator('img[src^="/globe-still-"]:visible').count()
             if live and canvases == 0:
                 problems.append(f"[{label}] the live scene did not run")
             if not live and canvases != 0:
@@ -206,9 +347,14 @@ def main():
                     "the live scene must not run here"
                 )
             if live and still != 0:
-                problems.append(f"[{label}] the still is being served above MIN_LIVE_WIDTH")
-            if not live and still != 1:
-                problems.append(f"[{label}] the still is not being served below MIN_LIVE_WIDTH")
+                problems.append(
+                    f"[{label}] {still} static frame(s) served above MIN_LIVE_WIDTH"
+                )
+            if not live and still != len(STILL_FRAMES):
+                problems.append(
+                    f"[{label}] {still} frame(s) below MIN_LIVE_WIDTH, not the "
+                    f"{len(STILL_FRAMES)} the sequence lists"
+                )
 
             # 3. every renderable copy string is on the page
             for path, text in leaves(copy):
@@ -488,6 +634,8 @@ def main():
             page.close()
 
         check_breakpoint(browser, problems, notes)
+        check_reduced_motion(browser, problems, notes)
+        check_keyboard(browser, problems, notes)
 
         browser.close()
 

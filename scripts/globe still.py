@@ -1,34 +1,80 @@
 """
-Renders the globe still served below MIN_LIVE_WIDTH.
+Renders the three globe frames served below MIN_LIVE_WIDTH.
 
   npm run dev
   python "scripts/globe still.py"
 
-Writes public/globe-still.png.
+Writes public/globe-still-whole.png, -separated.png and -descended.png.
 
-The still is a screenshot of the real scene at the last frame of the argument:
-the camera over Doha, the polygons flat and lit by record count, Qatar outlined
-and empty, and the five work package nodes up. It is not drawn by hand, and it
-must not be, or the picture the small screen path shows will drift away from the
-corpus the wide path shows. Regenerate it whenever the corpus or the globe
-changes and commit the result.
+They are screenshots of the real scene at three points in the argument: the
+whole sphere with countries raised and lit by record count, the dissection with
+both shells out, and the descent over Doha with the extrusion flat, Qatar
+outlined and empty, and the five work package nodes up. Where they are taken
+from is STILL_FRAMES in lib/globe-sequence.ts, read out of that file here rather
+than repeated, so the pictures and the sequence cannot disagree about what
+"separated" means.
 
-The page cooperates through `?globe=still`, which holds the sequence at progress
-1, centres the sphere in the canvas rather than offsetting it right for a column
-of prose that is not there, and lifts the scene over the rest of the page so the
+It used to be one frame of the end state, which is not a quieter version of the
+argument. The move it is built on, the globe coming apart and then being
+descended into, was absent, and a reader below the live width was told what the
+layers were and never shown them.
+
+None of these is drawn by hand and none may be, or the picture the small screen
+path shows will drift away from the corpus the wide path shows. Regenerate them
+whenever the corpus or the globe changes and commit the result.
+
+The page cooperates through `?globe=still&frame=<id>`, which holds the sequence
+at that frame's position and lifts the scene over the rest of the page so the
 screenshot has nothing else in it.
 """
 
 import hashlib
 import json
 import os
+import re
 import sys
 
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "public", "globe-still.png")
-URL = "http://localhost:3000/?globe=still"
+PUBLIC = os.path.join(ROOT, "public")
+URL = "http://localhost:3000/?globe=still&frame={frame}"
+
+
+def frames():
+    """
+    The frames, with where each is taken from and how much of it is kept, read
+    out of lib/globe-sequence.ts.
+
+    They live there because the page needs them too. Repeating the list here is
+    how the renderer and the page come to disagree about which frame is which,
+    so it is parsed instead.
+    """
+    path = os.path.join(ROOT, "lib", "globe-sequence.ts")
+    with open(path, encoding="utf-8") as f:
+        src = f.read()
+
+    block = re.search(r"STILL_FRAMES\s*=\s*\[(.*?)\n\]", src, re.S)
+    if not block:
+        raise SystemExit("could not find STILL_FRAMES in lib/globe-sequence.ts")
+    found = re.findall(
+        r"id:\s*'([a-z]+)'\s*,\s*at:\s*([\d.]+)\s*,\s*crop:\s*(\d+)", block.group(1)
+    )
+    if not found:
+        raise SystemExit("STILL_FRAMES in lib/globe-sequence.ts parsed as empty")
+
+    size = re.search(r"STILL_RENDER\s*=\s*\{\s*width:\s*(\d+),\s*height:\s*(\d+)", src)
+    if not size:
+        raise SystemExit("could not find STILL_RENDER in lib/globe-sequence.ts")
+
+    return (
+        [(fid, float(at), int(crop)) for fid, at, crop in found],
+        (int(size.group(1)), int(size.group(2))),
+    )
+
+
+def out_path(frame_id):
+    return os.path.join(PUBLIC, f"globe-still-{frame_id}.png")
 
 # Written next to this script and read by "scripts/check globe still.mjs",
 # which fails the build when the corpus has moved on and the still has not.
@@ -57,15 +103,10 @@ def source_hashes():
         out[rel.replace("\\", "/")] = hashlib.sha256(data).hexdigest()
     return out
 
-# Render square, then keep the middle of it. globe.gl frames by field of view,
-# so a larger canvas buys pixels rather than reach, and the only way to get the
-# subject bigger in the frame is to keep less of the frame. The still is served
-# at about a third of the width the live scene has, and uncropped, Qatar comes
-# out around fifteen pixels on a phone and the outline that the whole descent is
-# built around cannot be seen. The crop is centred on the camera target, which
-# is Doha, so it is still the scene rather than a composition.
-SIZE = 1400
-CROP = 880
+# How long to wait before capturing. The scene has to build its geometry, take
+# the camera where the frame asks and bring the shells or the nodes in on top of
+# that. globe.gl gives no ready signal past the first frame, so this waits
+# rather than guesses.
 
 # The scene has to build its geometry, take the camera to Doha and bring the
 # nodes up before there is anything worth capturing. globe.gl gives no ready
@@ -74,41 +115,58 @@ SETTLE_MS = 6000
 
 
 def main():
+    wanted, (render_w, render_h) = frames()
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": SIZE, "height": SIZE})
+        page = browser.new_page(viewport={"width": render_w, "height": render_h})
 
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
 
-        try:
-            page.goto(URL, wait_until="networkidle", timeout=30000)
-        except Exception as e:
-            print(f"could not reach {URL}. Is npm run dev running?\n{e}")
-            return 1
+        os.makedirs(PUBLIC, exist_ok=True)
+        written = []
 
-        # The dev server draws its own indicator over the page and it is inside
-        # the capture box. The host element is in the light dom, so hiding it
-        # here is enough and next.config.ts does not have to change.
-        page.add_style_tag(content="nextjs-portal { display: none !important; }")
+        for frame_id, at, crop in wanted:
+            url = URL.format(frame=frame_id)
+            try:
+                page.goto(url, wait_until="networkidle", timeout=30000)
+            except Exception as e:
+                print(f"could not reach {url}. Is npm run dev running?\n{e}")
+                browser.close()
+                return 1
 
-        stage = page.locator("[data-globe-still]")
-        try:
-            stage.wait_for(state="visible", timeout=15000)
-            page.locator("[data-globe-still] canvas").wait_for(state="attached", timeout=15000)
-        except Exception as e:
-            print(f"the capture layer never appeared: {e}")
-            browser.close()
-            return 1
+            # The dev server draws its own indicator over the page and it is
+            # inside the capture box. The host element is in the light dom, so
+            # hiding it here is enough and next.config.ts does not have to
+            # change.
+            page.add_style_tag(content="nextjs-portal { display: none !important; }")
 
-        page.wait_for_timeout(SETTLE_MS)
+            stage = page.locator("[data-globe-still]")
+            try:
+                stage.wait_for(state="visible", timeout=15000)
+                page.locator("[data-globe-still] canvas").wait_for(state="attached", timeout=15000)
+            except Exception as e:
+                print(f"the capture layer never appeared for {frame_id}: {e}")
+                browser.close()
+                return 1
 
-        os.makedirs(os.path.dirname(OUT), exist_ok=True)
-        inset = (SIZE - CROP) / 2
-        page.screenshot(
-            path=OUT,
-            clip={"x": inset, "y": inset, "width": CROP, "height": CROP},
-        )
+            page.wait_for_timeout(SETTLE_MS)
+
+            path = out_path(frame_id)
+            if crop > 0:
+                page.screenshot(
+                    path=path,
+                    clip={
+                        "x": (render_w - crop) / 2,
+                        "y": (render_h - crop) / 2,
+                        "width": crop,
+                        "height": crop,
+                    },
+                )
+            else:
+                page.screenshot(path=path)
+            written.append((frame_id, at, crop, path))
+
         browser.close()
 
         if errors:
@@ -118,11 +176,17 @@ def main():
             return 1
 
     with open(STAMP, "w", encoding="utf-8", newline="\n") as f:
-        json.dump({"sources": source_hashes()}, f, indent=2)
+        json.dump(
+            {"sources": source_hashes(), "frames": [fid for fid, _, _ in wanted]},
+            f,
+            indent=2,
+        )
         f.write("\n")
 
-    size_kb = os.path.getsize(OUT) / 1024
-    print(f"wrote {os.path.relpath(OUT, ROOT)}  {CROP}x{CROP}  {size_kb:.0f} KB")
+    for frame_id, at, crop, path in written:
+        size_kb = os.path.getsize(path) / 1024
+        shape = f"{crop}x{crop}" if crop else f"{render_w}x{render_h}"
+        print(f"wrote {os.path.relpath(path, ROOT)}  at {at}  {shape}  {size_kb:.0f} KB")
     print(f"wrote {os.path.relpath(STAMP, ROOT)}")
     return 0
 
