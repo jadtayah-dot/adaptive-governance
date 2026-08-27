@@ -162,7 +162,15 @@ SAMPLE_WHILE = """
 
 
 def headline(page):
-    text = page.locator('[aria-live="polite"]').first.inner_text()
+    """
+    The settled count, not the counting one.
+
+    The visible number counts to its new value over the motion duration, so
+    reading it is a race. The value carried beside it for assistive technology
+    is written once per selection and is the answer, which is also the thing a
+    screen reader is actually told.
+    """
+    text = page.locator('[aria-live="polite"] span.sr-only').first.text_content()
     return int(re.search(r"(\d+)", text).group(1))
 
 

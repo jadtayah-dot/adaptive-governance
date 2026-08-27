@@ -31,6 +31,16 @@ export type BarState = {
   /** Pixels down the page. Rank position, for a list that re ranks. */
   offset: number
   opacity: number
+  /**
+   * The count the bar stands for. Counted up rather than swapped, on the same
+   * clock and the same easing as the bar, so the number and the length arrive
+   * together instead of one jumping ahead of the other.
+   *
+   * This is the one thing here that is not a compositor property. It is a text
+   * node on an element held at tabular-nums, so the width does not change and
+   * nothing reflows around it.
+   */
+  count: number
 }
 
 /** Key to the fraction of that bar the hovered group holds. 1 means no preview. */
@@ -70,6 +80,9 @@ export function useBars(
         row.style.transform = `translate3d(0, ${state.offset}px, 0)`
       }
       row.style.opacity = String(state.opacity)
+
+      const count = row.querySelector<HTMLElement>('[data-part="count"]')
+      if (count) count.textContent = String(Math.round(state.count))
 
       const fill = row.querySelector<HTMLElement>('[data-part="fill"]')
       const erase = row.querySelector<HTMLElement>('[data-part="erase"]')
@@ -117,6 +130,17 @@ export function useBars(
     }
 
     const from = new Map(applied.current)
+    /*
+      Put the old state back before the browser paints.
+
+      React has just rendered the new count into the text nodes, and the tween's
+      first frame does not land until the next animation frame, so without this
+      the reader sees the answer for one frame and then watches it count to the
+      answer it already showed. This runs in a layout effect, so it is before
+      paint and nothing is visible.
+    */
+    paint(from)
+
     cancel.current = tween((t) => {
       const at = new Map<string, BarState>()
       for (const [key, to] of targets) {
@@ -125,6 +149,7 @@ export function useBars(
           main: lerp(start.main, to.main, t),
           offset: lerp(start.offset, to.offset, t),
           opacity: lerp(start.opacity, to.opacity, t),
+          count: lerp(start.count, to.count, t),
         })
       }
       paint(at)

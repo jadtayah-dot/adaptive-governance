@@ -47,7 +47,12 @@ export default function CorpusBreakdown({
   const targets = useMemo(() => {
     const out = new Map<string, BarState>()
     for (const row of rows) {
-      out.set(row.key, { offset: 0, main: max > 0 ? row.value / max : 0, opacity: 1 })
+      out.set(row.key, {
+        offset: 0,
+        main: max > 0 ? row.value / max : 0,
+        opacity: 1,
+        count: row.value,
+      })
     }
     return out
   }, [rows, max])
@@ -93,7 +98,7 @@ export default function CorpusBreakdown({
                     {row.label}
                   </span>
                   <span className="shrink-0 text-[0.8rem] tabular-nums text-ink">
-                    {row.value}
+                    <span data-part="count">{row.value}</span>
                     <span className="sr-only"> {unit(row.value)}</span>
                   </span>
                 </span>

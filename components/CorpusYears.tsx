@@ -52,7 +52,12 @@ export default function CorpusYears({
   const targets = useMemo(() => {
     const out = new Map<string, BarState>()
     for (const column of columns) {
-      out.set(column.key, { offset: 0, main: max > 0 ? column.value / max : 0, opacity: 1 })
+      out.set(column.key, {
+        offset: 0,
+        main: max > 0 ? column.value / max : 0,
+        opacity: 1,
+        count: column.value,
+      })
     }
     return out
   }, [columns, max])
@@ -96,7 +101,12 @@ export default function CorpusYears({
                   {/* A hard space where there is nothing to say, so every column
                       is the same height and the tracks share a baseline. An
                       empty label collapses its line box and drops the column. */}
-                  {column.value > 0 ? column.value : ' '}
+                  {/* The counter writes over this span. It writes a zero
+                      rather than a space, which is the honest thing under a
+                      selection the year holds nothing for. */}
+                  <span data-part="count">
+                    {column.value > 0 ? column.value : ' '}
+                  </span>
                 </span>
                 {/* Same track and same scale as the horizontal bars, stood up. */}
                 <span

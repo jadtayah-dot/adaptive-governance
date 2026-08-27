@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 
 import CorpusBreakdown from '@/components/CorpusBreakdown'
+import CorpusCount from '@/components/CorpusCount'
 import CorpusRanking, { type RankRow } from '@/components/CorpusRanking'
 import CorpusTable from '@/components/CorpusTable'
 import CorpusYears from '@/components/CorpusYears'
@@ -398,7 +399,7 @@ export default function CorpusBrowser({ records }: { records: CorpusRecord[] }) 
       <div className="sticky top-0 z-20 -mx-6 mt-10 border-y border-rule bg-surface px-6 py-3 md:-mx-10 md:px-10 2xl:-mx-16 2xl:px-16">
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
           <p className="text-[1.6rem] font-semibold tabular-nums" aria-live="polite">
-            {matches.length}{' '}
+            <CorpusCount value={matches.length} />{' '}
             <span className="text-[0.9rem] font-normal text-ink-muted">{c.selection.unit}</span>
           </p>
           {chips.length === 0 ? (

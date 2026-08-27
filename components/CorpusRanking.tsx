@@ -86,6 +86,7 @@ export default function CorpusRanking({
         offset: Math.min(rank, cut) * ROW_HEIGHT,
         main: max > 0 ? row.value / max : 0,
         opacity: hidden ? 0 : row.value > 0 ? 1 : 0.4,
+        count: row.value,
       })
     }
     return out
@@ -165,7 +166,7 @@ export default function CorpusRanking({
                 />
               </span>
               <span className="w-7 shrink-0 text-right text-[0.8rem] tabular-nums text-ink">
-                {row.value}
+                <span data-part="count">{row.value}</span>
                 <span className="sr-only"> {unit(row.value)}</span>
               </span>
             </button>
