@@ -2,7 +2,13 @@
 
 import { useMemo, useRef } from 'react'
 
-import { restingStyle, useBars, type BarState, type Brush } from '@/lib/corpus-bars'
+import {
+  restingStyle,
+  useBars,
+  usePointerPreview,
+  type BarState,
+  type Brush,
+} from '@/lib/corpus-bars'
 import { fill } from '@/lib/corpus-motion'
 
 /**
@@ -93,6 +99,7 @@ export default function CorpusRanking({
   }, [rows, ranks, max, cut])
 
   useBars(container, targets, brush, 'x')
+  const pointer = usePointerPreview(group, onPreview)
 
   if (rows.length === 0) return <p className="text-[0.9rem] text-ink-muted">{emptyLabel}</p>
 
@@ -101,8 +108,7 @@ export default function CorpusRanking({
       ref={container}
       className="relative w-full"
       style={{ height: shown * ROW_HEIGHT }}
-      onMouseLeave={() => onPreview(null)}
-      onBlur={() => onPreview(null)}
+      {...pointer}
     >
       {rows.map((row) => {
         const at = targets.get(row.key)!
@@ -129,7 +135,6 @@ export default function CorpusRanking({
               aria-pressed={isSelected}
               tabIndex={hidden ? -1 : undefined}
               onClick={() => onToggle(row.key)}
-              onMouseEnter={() => onPreview({ group, key: row.key })}
               onFocus={() => onPreview({ group, key: row.key })}
               className={`flex h-full w-full items-center gap-2 pr-1 text-left sm:gap-3 ${
                 isSelected ? 'outline outline-2 outline-accent' : ''

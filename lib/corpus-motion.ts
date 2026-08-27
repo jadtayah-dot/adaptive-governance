@@ -20,9 +20,11 @@ export function prefersReducedMotion() {
 }
 
 /** Ease out cubic. Fast at the start, so the new ordering is legible early. */
-function ease(t: number) {
+export function ease(t: number) {
   return 1 - (1 - t) ** 3
 }
+
+export const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t)
 
 /**
  * Calls `onFrame` with an eased 0 to 1 for `duration`, then once more with
@@ -30,9 +32,19 @@ function ease(t: number) {
  * once with 1 and never schedules a frame, so the end state is the only state
  * ever painted rather than the animation being played fast.
  */
-export function tween(onFrame: (t: number) => void, duration = DURATION): () => void {
+/**
+ * `onFrame` is given the eased position and, beside it, the raw linear one.
+ *
+ * The raw value is what a staggered run needs: each bar has to work out where
+ * it is against a clock the whole group shares, and easing the group clock
+ * before splitting it would ease the delays as well as the bars.
+ */
+export function tween(
+  onFrame: (t: number, raw: number) => void,
+  duration = DURATION
+): () => void {
   if (prefersReducedMotion() || duration <= 0) {
-    onFrame(1)
+    onFrame(1, 1)
     return () => {}
   }
 
@@ -43,10 +55,11 @@ export function tween(onFrame: (t: number) => void, duration = DURATION): () => 
     if (start === null) start = now
     const elapsed = now - start
     if (elapsed >= duration) {
-      onFrame(1)
+      onFrame(1, 1)
       return
     }
-    onFrame(ease(elapsed / duration))
+    const raw = elapsed / duration
+    onFrame(ease(raw), raw)
     raf = requestAnimationFrame(step)
   }
 

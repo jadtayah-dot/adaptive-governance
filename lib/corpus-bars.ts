@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, type PointerEvent, type RefObject } from 'react'
 
-import { DURATION, lerp, prefersReducedMotion, tween } from './corpus-motion'
+import { DURATION, clamp01, ease, lerp, prefersReducedMotion, tween } from './corpus-motion'
 
 /**
  * The bar behaviour shared by the ranking, the four breakdowns and the year
@@ -31,6 +31,15 @@ import { DURATION, lerp, prefersReducedMotion, tween } from './corpus-motion'
  * reach a higher threshold at all.
  */
 const ENTRANCE_VISIBLE = 0.08
+
+/**
+ * How far apart the first and last bar of a block start, in milliseconds.
+ *
+ * Long enough that the block reads as arriving rather than snapping, short
+ * enough that the whole thing is over before a reader has finished looking at
+ * it. No individual bar runs longer than DURATION.
+ */
+const ENTRANCE_SPREAD = 260
 
 export type BarState = {
   /** 0 to 1 along the bar axis. */
@@ -62,6 +71,42 @@ const HAIR = 0.0001
 function scale(axis: 'x' | 'y', value: number) {
   const v = Math.max(value, HAIR)
   return axis === 'x' ? `scaleX(${v})` : `scaleY(${v})`
+}
+
+/**
+ * The handlers that decide which group is being pointed at.
+ *
+ * One move listener on the list, not an enter listener on every row, and it
+ * ignores any move that did not actually move.
+ *
+ * Rows used to carry onMouseEnter. Enter fires whenever a row arrives under the
+ * pointer, and scrolling a list under a pointer that is sitting still does
+ * exactly that: every row that slid past set a preview, so every other bar on
+ * the page was cut back to whatever had just gone under the cursor, over and
+ * over, for the whole scroll. Reported as the bars rushing through and drawing
+ * back, and that is what it was.
+ *
+ * A scroll under a still pointer also makes the browser re dispatch a move at
+ * the same coordinates so that :hover can be recomputed, which is why the
+ * coordinates are compared rather than trusted.
+ */
+export function usePointerPreview(
+  group: string,
+  onPreview: (at: { group: string; key: string } | null) => void
+) {
+  const last = useRef({ x: -1, y: -1 })
+  return {
+    onPointerMove: (event: PointerEvent<HTMLElement>) => {
+      if (event.clientX === last.current.x && event.clientY === last.current.y) return
+      last.current = { x: event.clientX, y: event.clientY }
+      const target = event.target as HTMLElement | null
+      const row = target?.closest?.('[data-bar]') as HTMLElement | null
+      const key = row?.dataset.bar
+      if (key) onPreview({ group, key })
+    },
+    onPointerLeave: () => onPreview(null),
+    onBlur: () => onPreview(null),
+  }
 }
 
 export function useBars(
@@ -247,18 +292,39 @@ export function useBars(
         io.disconnect()
         const to = latest.current
         const from = new Map(applied.current)
-        cancel.current = tween((t) => {
+        /*
+          Staggered, unlike a change of selection.
+
+          Sixty six bars all starting and stopping together is a single event
+          the eye reads as a snap, and it was reported as rushing through. Given
+          slightly different start times they read as arriving. The order is the
+          order the list is in, which for the ranking is most studied first, so
+          the longest bar leads.
+
+          A selection change is not staggered. That is a reply to a click and
+          has to feel immediate; this is an entrance and has room to be one.
+
+          No bar moves for longer than DURATION. What the spread lengthens is
+          the group, not any bar in it.
+        */
+        const keys = [...to.keys()]
+        const last = Math.max(keys.length - 1, 1)
+        cancel.current = tween((_, raw) => {
+          const elapsed = raw * (DURATION + ENTRANCE_SPREAD)
           const at = new Map<string, BarState>()
-          for (const [key, end] of to) {
+          keys.forEach((key, index) => {
+            const end = to.get(key)!
             const begin = from.get(key) ?? end
+            const delay = (index / last) * ENTRANCE_SPREAD
+            const t = ease(clamp01((elapsed - delay) / DURATION))
             at.set(key, {
               ...end,
               main: lerp(begin.main, end.main, t),
               count: lerp(begin.count, end.count, t),
             })
-          }
+          })
           paint(at)
-        }, DURATION)
+        }, DURATION + ENTRANCE_SPREAD)
       },
       { threshold: ENTRANCE_VISIBLE },
     )

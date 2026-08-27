@@ -5,7 +5,7 @@ Corpus page check.
 
 Needs `npm run dev` running.
 
-Nine things, all of which have been wrong at some point while this page was
+Ten things, all of which have been wrong at some point while this page was
 built:
 
   1. The derived breakdowns reach the corpus. Only normativeStance is a coded
@@ -28,6 +28,8 @@ built:
      is additive like every other choice.
   9. It works at 390: no horizontal scroll, no truncated country name, and every
      control, table opened, clears the 24 pixel minimum target.
+ 10. Scrolling is not pointing. A list scrolled under a still pointer must not
+     set a preview, and a real hover must still set one.
 
 The bar colours are not checked here. They are tokens walked by color-mix, and
 tests/palette.py checks both ends of that walk and fifty points along it against
@@ -162,6 +164,29 @@ SAMPLE_WHILE = """
   };
   requestAnimationFrame(tick);
 })
+"""
+
+
+# Counts frames in which the longest bar is cut back by a preview. With nothing
+# previewed the erase covers exactly the empty part of the track, so the longest
+# bar has essentially no erase at all. Anything more, while the reader is only
+# scrolling, is a preview nobody asked for.
+WATCH_CUTS = r"""
+() => {
+  window.__cuts = 0;
+  window.__frames = 0;
+  const ul = [...document.querySelectorAll('ul')].find(u => u.children.length > 40);
+  const longest = [...ul.children].reduce((best, li) =>
+    Number(li.dataset.value) > Number(best.dataset.value) ? li : best);
+  const erase = longest.querySelector('[data-part="erase"]');
+  const tick = () => {
+    window.__frames++;
+    const m = erase.style.transform.match(/scaleX\(([\d.]+)\)/);
+    if (m && parseFloat(m[1]) > 0.02) window.__cuts++;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
 """
 
 
@@ -486,6 +511,55 @@ def main():
             problems.append("under reduced motion the selection did not apply at all")
         reduced.close()
         page.close()
+
+        # ------------------------------------------------ 10 scrolling is not pointing
+        #
+        # Rows carried onMouseEnter, and enter fires whenever a row arrives
+        # under the pointer. Scrolling a list under a pointer that is sitting
+        # still does exactly that, so every row that slid past set a preview and
+        # every other bar on the page was cut back to it, over and over, for the
+        # whole scroll. It shipped, and it was reported as the bars rushing
+        # through and drawing back.
+        scroller = browser.new_page(viewport={"width": 1440, "height": 900})
+        scroller.goto(URL)
+        ready(scroller)
+
+        box = scroller.locator("ul li[data-bar]").first.bounding_box()
+        scroller.mouse.move(box["x"] + box["width"] * 0.5, box["y"] + 200)
+        scroller.wait_for_timeout(300)
+
+        scroller.evaluate(WATCH_CUTS)
+        for _ in range(12):
+            scroller.mouse.wheel(0, 220)
+            scroller.wait_for_timeout(60)
+        for _ in range(12):
+            scroller.mouse.wheel(0, -220)
+            scroller.wait_for_timeout(60)
+        scroller.wait_for_timeout(300)
+        scrolled = scroller.evaluate("() => ({ cuts: window.__cuts, frames: window.__frames })")
+
+        # A real hover still has to cut the bars, or the measurement above is of
+        # nothing and its zero means nothing.
+        scroller.evaluate("() => { window.__cuts = 0; window.__frames = 0; }")
+        panel_button(scroller, "Sector", "Water").hover()
+        scroller.wait_for_timeout(600)
+        hovered = scroller.evaluate("() => ({ cuts: window.__cuts, frames: window.__frames })")
+        scroller.close()
+
+        notes.append(
+            f"  scrolling with the pointer parked: {scrolled['cuts']} of "
+            f"{scrolled['frames']} frames cut; a real hover: {hovered['cuts']} of "
+            f"{hovered['frames']}"
+        )
+        if scrolled["cuts"] > 0:
+            problems.append(
+                f"scrolling cut the bars on {scrolled['cuts']} of {scrolled['frames']} "
+                "frames, so the page is treating a scroll as a pointing gesture"
+            )
+        if hovered["frames"] and hovered["cuts"] < hovered["frames"] * 0.5:
+            problems.append(
+                "a real hover did not cut the bars, so the check above proves nothing"
+            )
 
         # ------------------------------------------------------ 9 at 390
         narrow = browser.new_page(viewport={"width": NARROW, "height": 844})

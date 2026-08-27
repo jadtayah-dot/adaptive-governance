@@ -2,7 +2,13 @@
 
 import { useMemo, useRef } from 'react'
 
-import { restingStyle, useBars, type BarState, type Brush } from '@/lib/corpus-bars'
+import {
+  restingStyle,
+  useBars,
+  usePointerPreview,
+  type BarState,
+  type Brush,
+} from '@/lib/corpus-bars'
 import { fill } from '@/lib/corpus-motion'
 
 /**
@@ -58,6 +64,7 @@ export default function CorpusBreakdown({
   }, [rows, max])
 
   useBars(container, targets, brush, 'x')
+  const pointer = usePointerPreview(group, onPreview)
 
   return (
     <section aria-labelledby={`breakdown-${heading}`}>
@@ -69,8 +76,7 @@ export default function CorpusBreakdown({
       <ul
         ref={container}
         className="mt-3"
-        onMouseLeave={() => onPreview(null)}
-        onBlur={() => onPreview(null)}
+        {...pointer}
       >
         {rows.map((row) => {
           const at = targets.get(row.key)!
@@ -82,7 +88,6 @@ export default function CorpusBreakdown({
                 type="button"
                 aria-pressed={isSelected}
                 onClick={() => onToggle(row.key)}
-                onMouseEnter={() => onPreview({ group, key: row.key })}
                 onFocus={() => onPreview({ group, key: row.key })}
                 className={`block w-full px-1 py-1 text-left ${
                   isSelected ? 'outline outline-2 outline-accent' : ''

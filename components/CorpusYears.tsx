@@ -1,8 +1,14 @@
-'use client'
+﻿'use client'
 
 import { useMemo, useRef } from 'react'
 
-import { restingStyle, useBars, type BarState, type Brush } from '@/lib/corpus-bars'
+import {
+  restingStyle,
+  useBars,
+  usePointerPreview,
+  type BarState,
+  type Brush,
+} from '@/lib/corpus-bars'
 import { fill } from '@/lib/corpus-motion'
 
 /**
@@ -63,14 +69,14 @@ export default function CorpusYears({
   }, [columns, max])
 
   useBars(container, targets, brush, 'y')
+  const pointer = usePointerPreview(group, onPreview)
 
   return (
     <div className="overflow-x-auto">
       <ul
         ref={container}
         className="flex items-stretch gap-px"
-        onMouseLeave={() => onPreview(null)}
-        onBlur={() => onPreview(null)}
+        {...pointer}
       >
         {columns.map((column, index) => {
           const at = targets.get(column.key)!
@@ -93,7 +99,6 @@ export default function CorpusYears({
                 aria-pressed={isSelected}
                 aria-label={`${column.label}, ${column.value} ${unit(column.value)}`}
                 onClick={() => onToggle(column.key)}
-                onMouseEnter={() => onPreview({ group, key: column.key })}
                 onFocus={() => onPreview({ group, key: column.key })}
                 className={`block w-full ${isSelected ? 'outline outline-2 outline-accent' : ''}`}
               >
