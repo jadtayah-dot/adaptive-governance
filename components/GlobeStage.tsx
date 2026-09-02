@@ -76,6 +76,34 @@ function subscribeToWidth(onChange: () => void) {
   }
 }
 
+/*
+  Whether this browser can actually run the scene.
+
+  Width and reduced motion are choices. This is not: a device that cannot give
+  three.js a context would mount the canvas, fail, and leave an empty band where
+  the globe should be, which is worse than the stills it replaced. The static
+  path already exists and is the honest answer, so anything without WebGL takes
+  it. Chromium and Safari on the desk both pass; the reason this is here is the
+  handsets and the locked down browsers that cannot be tested from a desk.
+
+  Cached, because this is read on every getSnapshot and a context is not free.
+*/
+let webglSupport: boolean | null = null
+
+function hasWebGL() {
+  if (webglSupport !== null) return webglSupport
+  try {
+    const canvas = document.createElement('canvas')
+    webglSupport = !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    )
+  } catch {
+    webglSupport = false
+  }
+  return webglSupport
+}
+
 /** Whether the sequence stacks rather than ranging across the frame. */
 function readNarrow() {
   return window.innerWidth < NARROW_WIDTH
@@ -99,6 +127,7 @@ function readMode(): Mode {
     rather than two.
   */
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'static'
+  if (!hasWebGL()) return 'static'
   return window.innerWidth >= MIN_LIVE_WIDTH ? 'live' : 'static'
 }
 
@@ -210,6 +239,20 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
   const presence = useRef(1)
   const mode = useSyncExternalStore(subscribeToWidth, readMode, serverMode)
   const narrow = useSyncExternalStore(subscribeToWidth, readNarrow, serverNarrow)
+
+  /*
+    Publish the path taken, so the CSS pair can defer to it. The media queries
+    settle width and reduced motion before any script runs; this settles the one
+    question they cannot ask, whether the browser can run the scene at all.
+  */
+  useEffect(() => {
+    if (mode === 'unknown') return
+    const root = document.documentElement
+    root.dataset.globePath = mode === 'static' ? 'static' : 'live'
+    return () => {
+      delete root.dataset.globePath
+    }
+  }, [mode])
   /*
     Set once when the pin releases and cleared once when the reader comes back
     above it. It stays set for the whole page below the release, so scrolling

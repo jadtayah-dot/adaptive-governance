@@ -292,10 +292,21 @@ def check_keyboard(browser, problems, notes):
 
             # The index has to be reachable without a pointer and without
             # scrolling first. Tab until it is focused or the budget runs out.
+            #
+            # The comparison is one page.evaluate that finds the button afresh
+            # rather than a held locator. A locator resolved once and evaluated
+            # 140 times throws the moment anything re renders the index out from
+            # under it, and with the live scene now running at every width there
+            # is a scroll driver reacting to focus moving. That is a fragile
+            # mechanism, not a fragile page: the question asked is unchanged.
+            focused = (
+                "() => { const el = document.querySelector('section[aria-label] ul button');"
+                " return !!el && el === document.activeElement; }"
+            )
             reached = False
             for _ in range(140):
                 page.keyboard.press("Tab")
-                if first.evaluate("(el) => el === document.activeElement"):
+                if page.evaluate(focused):
                     reached = True
                     break
             if not reached:

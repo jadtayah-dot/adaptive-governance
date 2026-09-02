@@ -176,15 +176,33 @@ body {
   reaching for !important.
 */
 @media (max-width: 359px), (prefers-reduced-motion: reduce) {
-  [data-globe-live] {
+  :root:not([data-globe-path]) [data-globe-live] {
     display: none;
   }
 }
 
 @media (min-width: 360px) and (prefers-reduced-motion: no-preference) {
-  [data-globe-static] {
+  :root:not([data-globe-path]) [data-globe-static] {
     display: none;
   }
+}
+
+/*
+  Once the scene has answered for itself, its answer wins.
+
+  Width and reduced motion are both questions CSS can ask, so the pair above
+  settles them before any script runs and the first paint is correct. Whether
+  the browser can give three.js a context is not: there is no media query for
+  it, and a device that cannot was getting the live path from CSS and no canvas
+  from React, which is neither path and an empty band. GlobeStage stamps what it
+  actually did on the root and this defers to it.
+*/
+:root[data-globe-path='live'] [data-globe-static] {
+  display: none;
+}
+
+:root[data-globe-path='static'] [data-globe-live] {
+  display: none;
 }
 
 :focus-visible {
