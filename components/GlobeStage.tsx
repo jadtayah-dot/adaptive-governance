@@ -296,11 +296,13 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       it here as well the globe would stay inert until the reader moved again.
     */
     const stage = layer.current
-    if (stage && stage.style.position === 'fixed') {
-      stage.style.pointerEvents =
-        presence.current >= SUBJECT_PRESENCE && handedOver ? 'auto' : 'none'
+    // Sticky when stacked, fixed when it is a background. Either way it is the
+    // live layer and either way it has to be told.
+    if (stage && (narrow || stage.style.position === 'fixed')) {
+      stage.style.pointerEvents = handedOver
+        && (narrow || presence.current >= SUBJECT_PRESENCE) ? 'auto' : 'none'
     }
-  }, [handedOver])
+  }, [handedOver, narrow])
 
   useEffect(() => {
     if (mode === 'unknown' || mode === 'static') return
@@ -356,7 +358,25 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         handed over, at full strength, with nothing else on screen to fade for.
         See GlobeHold in app/page.tsx.
       */
-      end: () => `bottom bottom-=${window.innerHeight}`,
+      /*
+        Wide, the sequence is paced by the prose it runs beside, so it ends one
+        viewport short of the container.
+
+        Narrow, the prose is under the band rather than beside it, and pacing
+        the sequence by the container's full length put about two screens of
+        scrolling between one transition and the next. Four screens, one per
+        phase, and what remains of the container is the globe at its final
+        state, still pinned and now yours to turn.
+      */
+      end: () => {
+        const vh = window.innerHeight
+        if (!narrow) return `bottom bottom-=${vh}`
+        const height = container.current?.getBoundingClientRect().height ?? 0
+        // Relative to the start. "top top+=n" resolves above the start, which
+        // makes the range degenerate and pins progress at 1 from the first
+        // frame, handing the globe over before the sequence has run at all.
+        return `+=${Math.max(vh, Math.min(4 * vh, height - vh))}`
+      },
       onUpdate: (self) => {
         progress.current = self.progress
         paint(self.progress)
@@ -407,7 +427,13 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         screen left below the fold, and it stays finished for the rest of the
         page. Scrolling back above it flips this and the camera walks back.
       */
-      const finished = box.bottom <= 2 * vh
+      /*
+        Wide, the sequence runs to the container's end, so the handover is a
+        question about the container. Narrow, it finishes four screens in and
+        the band stays pinned for the rest, so the handover follows the
+        sequence: the globe becomes yours as soon as it stops moving on its own.
+      */
+      const finished = narrow ? progress.current >= 0.995 : box.bottom <= 2 * vh
       if (finished !== releasedRef.current) {
         releasedRef.current = finished
         setPastRelease(finished)
@@ -424,8 +450,8 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
         Pointer input belongs to the globe only while it is prominent. See
         SUBJECT_PRESENCE.
       */
-      stageEl.style.pointerEvents =
-        p >= SUBJECT_PRESENCE && handedOverRef.current ? 'auto' : 'none'
+      stageEl.style.pointerEvents = handedOverRef.current
+        && (narrow || p >= SUBJECT_PRESENCE) ? 'auto' : 'none'
     }
 
     lenis.on('scroll', applyPresence)
@@ -510,6 +536,18 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
           driver is running and can set the strength presence asks for.
         */
         data-globe-live={capturing ? undefined : ''}
+        /*
+          Lenis handles touch on the whole page, so a finger dragged across the
+          band was scrolling rather than turning the globe, which is most of
+          what "not very responsive" was. This hands that gesture back.
+
+          Only once the globe is interactive, and only when stacked. Before the
+          handover the band is two thirds of a phone screen and taking touch
+          there would leave most of the viewport unable to scroll the page. Wide,
+          the layer is the full viewport and doing this at all would stop the
+          page scrolling anywhere over the globe.
+        */
+        data-lenis-prevent={narrow && handedOver ? '' : undefined}
         className={
           capturing
             ? 'fixed inset-0 z-50 bg-surface'
