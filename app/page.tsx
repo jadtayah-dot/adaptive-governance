@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import CorpusYearsFigure, { type YearCount } from '@/components/CorpusYearsFigure'
 import GlobeStage from '@/components/GlobeStage'
+import HomeTabs from '@/components/HomeTabs'
 import InstitutionLogos from '@/components/InstitutionLogos'
 import ReviewFunnel from '@/components/ReviewFunnel'
 import { STILL_FRAMES, stillSize, type StillFrame } from '@/lib/globe-sequence'
@@ -123,10 +124,20 @@ export default function Home() {
         <GlobeHold />
       </GlobeStage>
       <CorpusEvidence />
-      <Roadmap />
-      <Outputs />
-      <Events />
-      <Team />
+      {/*
+        Four sections that each have their own route, shown one at a time below
+        1024 and stacked in document order above it. Labels are the section
+        headings from content/home.json, verbatim. See components/HomeTabs.tsx
+        for why the width is subscribed to rather than styled around.
+      */}
+      <HomeTabs
+        tabs={[
+          { id: 'roadmap', label: home.roadmap.heading, panel: <Roadmap /> },
+          { id: 'outputs', label: home.outputs.heading, panel: <Outputs /> },
+          { id: 'events', label: home.events.heading, panel: <Events /> },
+          { id: 'team', label: home.team.heading, panel: <Team /> },
+        ]}
+      />
       <Collaborate />
       <Footer />
     </div>

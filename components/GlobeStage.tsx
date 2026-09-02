@@ -10,6 +10,7 @@ import GlobeMount from './GlobeMount'
 import copy from '@/content/globe.json'
 import {
   MIN_LIVE_WIDTH,
+  NARROW_WIDTH,
   STILL_FRAMES,
   SUBJECT_PRESENCE,
   type StillFrame,
@@ -39,9 +40,19 @@ import {
   takes the element out of flow into a spacer; sticky needs neither and releases
   at the container bottom on its own, which is where the handover belongs.
 
-  Below MIN_LIVE_WIDTH none of this runs. The layout is neutralised in CSS, so
-  it is correct from the first paint with no hydration branch, and the WebGL
-  scene is never mounted at all.
+  Below NARROW_WIDTH the same scene runs, stacked rather than ranged across the
+  frame. The globe holds a band at the top of the viewport, the passages sit
+  directly under that band, and the prose runs beneath both. Two things follow
+  from the stack that are worth stating, because both were bugs first.
+
+  The layer stays sticky there rather than going fixed. Fixed is what lets the
+  globe sit behind the whole page, which is right when it is a background at
+  z-0; a band that is opaque and above the sections has to belong to the
+  argument container only, or it covers the hero.
+
+  Presence does not apply either. Presence scales and fades the layer according
+  to how much of the page the globe should own, which is the wrong question for
+  a band that is either present or gone.
 
   Nothing in here writes to React state per frame. The scroll position goes into
   a ref that the globe reads on the gsap ticker, and the passages are written
@@ -63,6 +74,15 @@ function subscribeToWidth(onChange: () => void) {
     window.removeEventListener('resize', onChange)
     calm.removeEventListener('change', onChange)
   }
+}
+
+/** Whether the sequence stacks rather than ranging across the frame. */
+function readNarrow() {
+  return window.innerWidth < NARROW_WIDTH
+}
+
+function serverNarrow() {
+  return false
 }
 
 function readMode(): Mode {
@@ -189,6 +209,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
   const runway = useRef<HTMLDivElement>(null)
   const presence = useRef(1)
   const mode = useSyncExternalStore(subscribeToWidth, readMode, serverMode)
+  const narrow = useSyncExternalStore(subscribeToWidth, readNarrow, serverNarrow)
   /*
     Set once when the pin releases and cleared once when the reader comes back
     above it. It stays set for the whole page below the release, so scrolling
@@ -317,10 +338,12 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
     // Copied out of the ref here so the cleanup restores the node this effect
     // actually touched rather than whatever the ref points at by then.
     const flow = runway.current
-    if (stage) stage.style.position = 'fixed'
+    // Stacked, the layer stays sticky and keeps its slot in flow: the prose is
+    // meant to begin under the band, not behind it.
+    if (stage && !narrow) stage.style.position = 'fixed'
     // The pullback exists to cancel the 100vh slot a sticky layer takes in
     // flow. A fixed layer takes none, so it has to go with it.
-    if (flow) flow.style.marginTop = '0px'
+    if (flow && !narrow) flow.style.marginTop = '0px'
 
 
     const applyPresence = () => {
@@ -350,8 +373,10 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       const { presence: p, strength } = stageAt(box.top, box.bottom, vh)
       presence.current = p
 
-      stageEl.style.transform = stageTransform(p)
-      stageEl.style.opacity = stageOpacity(strength).toFixed(3)
+      if (!narrow) {
+        stageEl.style.transform = stageTransform(p)
+        stageEl.style.opacity = stageOpacity(strength).toFixed(3)
+      }
       /*
         Pointer input belongs to the globe only while it is prominent. See
         SUBJECT_PRESENCE.
@@ -379,7 +404,7 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       }
       if (flow) flow.style.marginTop = ''
     }
-  }, [mode])
+  }, [mode, narrow])
 
 
   // Newly mounted passages have never been painted. See paintRef above.
@@ -446,9 +471,14 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
           capturing
             ? 'fixed inset-0 z-50 bg-surface'
             : [
-                // z-0 and every section above it: the globe is behind the page,
-                // not over it. See the [data-above-globe] rule in globals.css.
-                'sticky top-0 z-0 h-screen w-full origin-center overflow-hidden',
+                narrow
+                  ? // Stacked: an opaque band at the top of the viewport, above
+                    // the prose rather than behind it, so the two never share a
+                    // pixel. z-30 clears [data-above-globe], which is z-10.
+                    'sticky top-0 z-30 h-[58svh] w-full overflow-hidden bg-surface'
+                  : // z-0 and every section above it: the globe is behind the
+                    // page, not over it. See [data-above-globe] in globals.css.
+                    'sticky top-0 z-0 h-screen w-full origin-center overflow-hidden',
                 handedOver ? 'pointer-events-auto' : 'pointer-events-none',
               ].join(' ')
         }
@@ -472,7 +502,9 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       */}
       <div
         ref={runway}
-        className={`pointer-events-none relative -mt-[100vh] max-[1199px]:mt-0 ${
+        className={`pointer-events-none relative ${
+          narrow ? '' : '-mt-[100vh]'
+        } ${
           capturing ? 'invisible' : ''
         }`}
       >
@@ -505,8 +537,23 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
       */}
       {capturing ? null : (
         <div data-globe-live className="pointer-events-none fixed inset-0 z-40">
-          {SLOTS.map((slot) => (
-            <div key={slot.at} className={`absolute flex flex-col gap-6 ${slot.at}`}>
+          {/*
+            Stacked, every passage arrives in one place directly under the globe
+            band, so there is one slot rather than five. The corners the wide
+            composition uses do not exist on a phone, where the sphere fills its
+            band edge to edge. Five containers at one position was the first
+            attempt and it stacked two cards on the same coordinates through
+            every cross fade, so one card's text ran past the other's panel.
+          */}
+          {(narrow ? [{ at: 'stacked', items: PASSAGES }] : SLOTS).map((slot) => (
+            <div
+              key={slot.at}
+              className={
+                narrow
+                  ? 'absolute top-[58svh] right-4 left-4 mt-4 flex flex-col gap-4'
+                  : `absolute flex flex-col gap-6 ${slot.at}`
+              }
+            >
               {slot.items.map((passage) =>
                 handedOver || !live[PASSAGES.indexOf(passage)] ? null : (
                 <div

@@ -55,6 +55,62 @@ def min_live_width():
 MIN_LIVE_WIDTH = min_live_width()
 
 
+def tabbed_max_width():
+    """
+    The width below which four sections are shown one at a time, read out of
+    components/HomeTabs.tsx for the same reason MIN_LIVE_WIDTH is read out of
+    the source: so the check and the site cannot drift apart.
+    """
+    with open(os.path.join(ROOT, "components", "HomeTabs.tsx"), encoding="utf-8") as f:
+        m = re.search(r"TABBED_MAX_WIDTH\s*=\s*(\d+)", f.read())
+    if not m:
+        raise SystemExit("could not find TABBED_MAX_WIDTH in components/HomeTabs.tsx")
+    return int(m.group(1))
+
+
+TABBED_MAX_WIDTH = tabbed_max_width()
+
+
+def narrow_width():
+    """
+    The width below which the sequence stacks rather than ranging across the
+    viewport, read out of lib/globe-sequence.ts alongside MIN_LIVE_WIDTH.
+    """
+    with open(os.path.join(ROOT, "lib", "globe-sequence.ts"), encoding="utf-8") as f:
+        m = re.search(r"NARROW_WIDTH\s*=\s*(\d+)", f.read())
+    if not m:
+        raise SystemExit("could not find NARROW_WIDTH in lib/globe-sequence.ts")
+    return int(m.group(1))
+
+
+NARROW_WIDTH = narrow_width()
+
+
+def all_copy_text(page):
+    """
+    The page's text with every tab panel opened in turn.
+
+    Below TABBED_MAX_WIDTH the roadmap, outputs, events and team sections are
+    shown one at a time, so a single read of the body would miss three of the
+    four and the copy check would fail on content that is present and one tap
+    away. Opening each tab asserts the stronger and more useful thing: that
+    every string is reachable, not that every string is on screen at once.
+
+    Above that width there is no tablist and this is one ordinary read, which is
+    exactly what it was before the tabs existed.
+    """
+    tabs = page.locator("[role=tab]")
+    count = tabs.count()
+    if count == 0:
+        return normalise(page.inner_text("body"))
+    readings = [normalise(page.inner_text("body"))]
+    for i in range(count):
+        tabs.nth(i).click()
+        page.wait_for_timeout(150)
+        readings.append(normalise(page.inner_text("body")))
+    return " ".join(readings)
+
+
 def still_frames():
     """
     The frames the static path serves, read out of lib/globe-sequence.ts. Adding
@@ -279,7 +335,23 @@ def main():
             # The Next dev indicator floats over the page and lands in screenshots.
             page.add_style_tag(content="nextjs-portal { display: none !important; }")
 
-            body_text = normalise(page.inner_text("body"))
+            body_text = all_copy_text(page)
+
+            # 0. the tab set is present below TABBED_MAX_WIDTH and absent above
+            #    it, and never shows more than one panel at a time. Desktop is
+            #    meant to be untouched by it.
+            tab_count = page.locator("[role=tab]").count()
+            if width < TABBED_MAX_WIDTH:
+                if tab_count == 0:
+                    problems.append(f"[{label}] no tab set below TABBED_MAX_WIDTH")
+                shown = page.evaluate(
+                    "() => [...document.querySelectorAll('[role=tabpanel]')]"
+                    ".filter(p => !p.hidden).length"
+                )
+                if shown != 1:
+                    problems.append(f"[{label}] {shown} tab panels shown at once, expected 1")
+            elif tab_count:
+                problems.append(f"[{label}] {tab_count} tab(s) at or above TABBED_MAX_WIDTH")
 
             # 1. every section present
             for sid in SECTION_IDS:
@@ -415,6 +487,12 @@ def main():
             expected = [p_ for p_ in people if p_["image"]]
 
             if expected:
+                # Below TABBED_MAX_WIDTH the team section is one tab of four, so
+                # it has to be opened before it can be scrolled to.
+                team_tab = page.locator("#hometab-team")
+                if team_tab.count():
+                    team_tab.click()
+                    page.wait_for_timeout(150)
                 page.locator("#team").scroll_into_view_if_needed()
                 try:
                     # Headshots are lazy loaded and the team section sits far down
@@ -540,13 +618,33 @@ def main():
                     const onScreen = (r) =>
                         r.bottom > 0 && r.top < window.innerHeight &&
                         r.right > 0 && r.left < window.innerWidth;
+                    // Same argument, one level in. An element scrolled out of
+                    // its own overflow container still reports a viewport
+                    // relative box, because the box is where it would be if
+                    // nothing clipped it. The country index is a 60vh list of
+                    // 66 countries, so most of it is always somewhere past its
+                    // own bottom edge, landing on whatever the document happens
+                    // to hold at those coordinates. Clipped text is not on
+                    // screen either, and cannot overlap anything.
+                    const clipped = (el) => {
+                        const r = el.getBoundingClientRect();
+                        for (let n = el.parentElement; n && n.nodeType === 1; n = n.parentElement) {
+                            const s = getComputedStyle(n);
+                            if (s.overflowX === 'visible' && s.overflowY === 'visible') continue;
+                            const c = n.getBoundingClientRect();
+                            if (r.bottom <= c.top + 1 || r.top >= c.bottom - 1) return true;
+                            if (r.right <= c.left + 1 || r.left >= c.right - 1) return true;
+                        }
+                        return false;
+                    };
                     const els = [...document.querySelectorAll(sel)].filter(el => {
                         if (el.querySelector(sel)) return false;          // leaf text only
                         const r = el.getBoundingClientRect();
                         return r.width > 0 && r.height > 0
                             && onScreen(r)
                             && (el.textContent || '').trim().length > 0
-                            && shown(el);
+                            && shown(el)
+                            && !clipped(el);
                     });
                     const hits = [];
                     for (let i = 0; i < els.length; i++) {
@@ -583,7 +681,54 @@ def main():
             #     the layer is at its background strength away from the
             #     argument. What the copy over it reads at is measured by
             #     tests/page contrast.py against real pixels.
-            if live:
+            #     Below NARROW_WIDTH the arrangement is the other way round and
+            #     so is the invariant. The globe is not a wash behind the page
+            #     there, it is an opaque band at the top of the viewport that
+            #     the prose scrolls under, so it has to outrank the sections
+            #     rather than be outranked by them, and it has to leave room:
+            #     a band as tall as the viewport is the full screen takeover
+            #     this arrangement exists to avoid.
+            if live and width < NARROW_WIDTH:
+                band = page.evaluate(
+                    """() => {
+                        const c = document.querySelector('canvas');
+                        const layer = c && c.closest('[data-globe-live]');
+                        if (!layer) return { missing: true };
+                        const z = (el) => Number(getComputedStyle(el).zIndex) || 0;
+                        const over = [];
+                        for (const s of document.querySelectorAll('[data-above-globe]')) {
+                          if (z(s) >= z(layer)) over.push(s.id || s.tagName.toLowerCase());
+                        }
+                        return {
+                          position: getComputedStyle(layer).position,
+                          layerZ: z(layer),
+                          over,
+                          heightShare: layer.getBoundingClientRect().height / window.innerHeight,
+                        };
+                    }"""
+                )
+                if band.get("missing"):
+                    problems.append(f"[{label}] the globe band is not on the page")
+                else:
+                    if band["position"] != "sticky":
+                        problems.append(
+                            f"[{label}] the globe band is {band['position']}, not sticky, "
+                            "so it is not held inside the argument and will cover the hero"
+                        )
+                    if band["over"]:
+                        problems.append(
+                            f"[{label}] sections paint over the globe band: {band['over']}"
+                        )
+                    if band["heightShare"] > 0.75:
+                        problems.append(
+                            f"[{label}] the globe band takes {band['heightShare']:.0%} of the "
+                            "viewport, leaving no room for the passage and the prose"
+                        )
+                    notes.append(
+                        f"[{label}] globe band sticky, z {band['layerZ']}, "
+                        f"{band['heightShare']:.0%} of the viewport"
+                    )
+            elif live:
                 stack = page.evaluate(
                     """() => {
                         const layer = [...document.querySelectorAll('div')].find(

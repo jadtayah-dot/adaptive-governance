@@ -175,13 +175,13 @@ body {
   after the utilities import so it settles any conflict on source order without
   reaching for !important.
 */
-@media (max-width: 1199px), (prefers-reduced-motion: reduce) {
+@media (max-width: 359px), (prefers-reduced-motion: reduce) {
   [data-globe-live] {
     display: none;
   }
 }
 
-@media (min-width: 1200px) and (prefers-reduced-motion: no-preference) {
+@media (min-width: 360px) and (prefers-reduced-motion: no-preference) {
   [data-globe-static] {
     display: none;
   }

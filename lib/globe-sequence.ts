@@ -17,19 +17,34 @@ export interface Pose {
 /**
  * The narrowest viewport that runs the live scene.
  *
- * The pinned sequence needs three things across the viewport at once: a 68
- * character measure, a sphere that never sits under it, and a column for the
- * annotations that never enters the measure. Measured at this type scale, the
- * measure is about 800 pixels and the annotation column about 210, and the
- * three stop fitting below roughly 1200. Under that the site serves the static
- * path instead: a still of the last stage, and the same copy as ordinary text.
+ * This was 1200. The reasoning was that the sequence needs three things across
+ * the viewport at once, a 68 character measure, a sphere that never sits under
+ * it, and a column for the annotations that never enters the measure, which at
+ * this type scale is about 800 pixels and about 210, and that the three stop
+ * fitting below roughly 1200.
  *
- * PRODUCT.md sets the floor at 768. This is well above it, and deliberately:
- * between 768 and 1200 the live scene fits only by putting something on top of
- * something else, and a reviewer on a tablet is better served by a page that
- * simply reads.
+ * All of that is still true, and ranging them across a phone is still
+ * impossible. What changed is that ranging them across is not the only
+ * arrangement. Below NARROW_WIDTH the same three are stacked down the viewport
+ * instead: the sphere holds a band at the top, the passages sit directly under
+ * it, and the prose runs beneath both. Nothing is laid over the middle of the
+ * globe, which is the rule 1200 was really protecting, and a phone gets the
+ * argument rather than a picture of where it ended.
+ *
+ * The static path remains, for prefers reduced motion and for anything narrower
+ * than a phone, and it is still the same three frames.
  */
-export const MIN_LIVE_WIDTH = 1200
+export const MIN_LIVE_WIDTH = 360
+
+/**
+ * At and above this the sequence ranges across the viewport. Below it, it
+ * stacks. See MIN_LIVE_WIDTH for why there are two arrangements rather than an
+ * arrangement and a photograph.
+ */
+export const NARROW_WIDTH = 1200
+
+/** The share of the viewport the globe holds when the sequence is stacked. */
+export const NARROW_GLOBE_BAND = '58svh'
 
 /**
  * The three frames the static path serves instead of the sequence.
