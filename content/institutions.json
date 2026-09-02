@@ -1,0 +1,28 @@
+{
+  "partners": [
+    {
+      "name": "Economic and Social Commission for Western Asia",
+      "file": "/images/logos/escwa.svg",
+      "width": 570,
+      "height": 190
+    },
+    {
+      "name": "Ministry of Foreign Affairs",
+      "file": "/images/logos/mofa.webp",
+      "width": 180,
+      "height": 144
+    },
+    {
+      "name": "Ministry of Communication and Information Technology",
+      "file": "/images/logos/mcit.webp",
+      "width": 480,
+      "height": 76
+    },
+    {
+      "name": "Ibtechar",
+      "file": "/images/logos/ibtechar.svg",
+      "width": 185,
+      "height": 144
+    }
+  ]
+}

@@ -103,6 +103,11 @@
 
   /* One uniform treatment across every headshot. See DESIGN.md. */
   --ag-portrait-filter: grayscale(1) contrast(1.05) brightness(1.02);
+
+  /* Institution marks arrive in maroon, blue, purple and the SDG palette. The
+     same argument as the portraits applies with more force, and the page holds
+     one accent. See DESIGN.md. */
+  --ag-logo-filter: grayscale(1) contrast(1.05) brightness(0.98);
 }
 
 

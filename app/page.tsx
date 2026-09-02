@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import CorpusYearsFigure, { type YearCount } from '@/components/CorpusYearsFigure'
 import GlobeStage from '@/components/GlobeStage'
+import InstitutionLogos from '@/components/InstitutionLogos'
 import ReviewFunnel from '@/components/ReviewFunnel'
 import { STILL_FRAMES, stillSize, type StillFrame } from '@/lib/globe-sequence'
 import globe from '@/content/globe.json'
@@ -645,7 +646,11 @@ function Footer() {
         ))}
       </div>
 
-      <div className="mt-16 max-w-[68ch] space-y-4 border-t border-rule pt-8 text-[0.9rem] leading-relaxed text-ink-muted">
+      <div className="mt-16 border-t border-rule pt-8">
+        <InstitutionLogos />
+      </div>
+
+      <div className="mt-12 max-w-[68ch] space-y-4 text-[0.9rem] leading-relaxed text-ink-muted">
         {c.lines.map((line) => (
           <p key={line.slice(0, 32)}>{line}</p>
         ))}
