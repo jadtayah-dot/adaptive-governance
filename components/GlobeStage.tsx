@@ -571,6 +571,12 @@ export default function GlobeStage({ children }: { children: React.ReactNode }) 
               interactive={handedOver}
               selected={selected}
               onSelect={setSelected}
+              /*
+                Narrow scrolls natively, so the scroll position arrives in
+                steps and the globe smooths them. Wide, Lenis has already
+                smoothed the scroll and a second easing would only add lag.
+              */
+              smoothProgress={narrow}
             />
           ) : null}
         </div>

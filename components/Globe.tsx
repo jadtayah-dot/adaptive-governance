@@ -22,6 +22,7 @@ import { ISO_NUMERIC_TO_ALPHA3 } from '@/lib/iso-numeric-to-alpha3'
 import {
   FLATTEN_AT,
   HANDOVER_LAT,
+  NARROW_WIDTH,
   HANDOVER_MS,
   OPENING_LAT,
   OPENING_LNG,
@@ -105,6 +106,14 @@ export interface GlobeProps {
   selected?: string | null
   /** A click on a country the corpus reaches. Opens its records beside the globe. */
   onSelect?: (code: string) => void
+  /**
+   * Ease the applied scroll position toward the reported one instead of
+   * applying it raw. On, when the page scroll is native rather than smoothed:
+   * touch scrolling arrives quantised, and a camera fed those steps directly
+   * judders through every transition. Off where Lenis already smooths the
+   * scroll, because two easings in series is lag, not polish.
+   */
+  smoothProgress?: boolean
 }
 
 /*
@@ -305,6 +314,7 @@ export default function Globe({
   interactive = false,
   selected = null,
   onSelect,
+  smoothProgress = false,
 }: GlobeProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const globe = useRef<GlobeMethods | undefined>(undefined)
@@ -376,6 +386,59 @@ export default function Globe({
     }
   }, [unmatched])
 
+  /*
+    The render loop runs only while the globe can be seen.
+
+    globe.gl starts its own requestAnimationFrame at mount and never stops it,
+    which on this page meant rendering seven hundred odd objects behind the
+    hero, the cases and the team, everywhere the globe is not. Wide, the layer
+    is fixed behind the whole page and stays visible, so this changes nothing
+    there. Stacked, the band scrolls away with its container and the scene
+    sleeps for every screen that does not show it, which is most of the page.
+  */
+  useEffect(() => {
+    const g = globe.current
+    const el = wrap.current
+    if (!live || !g || !el) return
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) g.resumeAnimation()
+      else g.pauseAnimation()
+    })
+    io.observe(el)
+    return () => {
+      io.disconnect()
+      g.resumeAnimation()
+    }
+  }, [live])
+
+  /*
+    Fragment cost scales with the square of the pixel ratio. The library caps
+    it at two; on a phone band the map reads the same at 1.75 and the GPU pays
+    a fifth less for it. The wide globe fills the viewport and keeps the cap.
+  */
+  useEffect(() => {
+    const g = globe.current
+    if (!live || !g || size.w === 0) return
+    // three ships no type declarations in this project (see types/), so the
+    // renderer comes back effectively untyped and the one method used is named.
+    const renderer = g.renderer() as unknown as { setPixelRatio(v: number): void }
+    renderer.setPixelRatio(
+      Math.min(size.w >= NARROW_WIDTH ? 2 : 1.75, window.devicePixelRatio),
+    )
+  }, [live, size.w])
+
+  /*
+    OrbitControls maps a drag to an angle by dividing by the element height, so
+    the same flick turns a 385 pixel band twice as far as the full height layer.
+    Normalised against the wide layer so a drag covers the same arc everywhere,
+    floored so a very short band does not go treacly.
+  */
+  useEffect(() => {
+    const g = globe.current
+    if (!live || !g || size.h === 0) return
+    g.controls().rotateSpeed = Math.max(0.45, Math.min(1, size.h / 774))
+  }, [live, size.h])
+
   useEffect(() => {
     const el = wrap.current
     if (!el) return
@@ -417,6 +480,12 @@ export default function Globe({
     // Longitude only. Latitude and altitude are set from the scroll position by
     // the effect below, which needs the camera's field of view to work them out.
     g.pointOfView({ lat: OPENING_LAT, lng: OPENING_LNG })
+    // Dev only: the camera is otherwise unreachable from the console or from a
+    // test, and every interaction question about this globe ends at "where is
+    // the camera, exactly". Stripped from production builds with the branch.
+    if (process.env.NODE_ENV !== 'production') {
+      ;(window as unknown as { __agGlobe?: GlobeMethods }).__agGlobe = g
+    }
     setLive(true)
   }, [])
 
@@ -582,8 +651,21 @@ export default function Globe({
       })
     }
 
-    function tick() {
-      const p = progress.current
+    // What the camera was last shown, distinct from what the scroll reports.
+    let shown = -1
+
+    function tick(_time: number, deltaTime: number) {
+      const target = progress.current
+      let p = target
+      if (smoothProgress) {
+        if (shown < 0) shown = target
+        // Exponential approach, framerate independent. About a tenth of a
+        // second to settle: enough to swallow the steps native touch scroll
+        // arrives in, not enough to feel like the globe is trailing the page.
+        shown += (target - shown) * (1 - Math.exp(-0.012 * deltaTime))
+        if (Math.abs(target - shown) < 0.0004) shown = target
+        p = shown
+      }
       // Nothing to do on a still frame unless the globe is turning under its
       // own rotation, which moves the camera without moving the scroll.
       if (p === lastApplied.current && !controls.autoRotate) return
@@ -609,7 +691,7 @@ export default function Globe({
       collarGeometry.dispose()
       lastApplied.current = -1
     }
-  }, [calm, live, palette, progress])
+  }, [calm, live, palette, progress, smoothProgress])
 
   /*
     The altitude that frames the sphere against the viewport height, so its limb
@@ -685,6 +767,16 @@ export default function Globe({
     */
     controls.enableRotate = interactive
     controls.autoRotate = false
+    /*
+      Inertia, from the handover on. globe.gl runs controls.update every frame,
+      so damping costs nothing to enable, and a drag that glides to a stop
+      instead of halting under the finger is most of the difference between a
+      globe that feels like an instrument and one that feels stuck. Not under
+      reduced motion, where a glide is exactly the kind of residual movement
+      that setting asks to be spared.
+    */
+    controls.enableDamping = interactive && !calm
+    controls.dampingFactor = 0.09
 
     if (interactive) {
       // The bars come back with the camera. That is derived at render from the
@@ -844,7 +936,20 @@ export default function Globe({
           polygonCapColor={capColor}
           polygonSideColor={sideColor}
           polygonStrokeColor={strokeColor}
-          polygonCapCurvatureResolution={2}
+          /*
+            How finely each cap follows the sphere, in degrees. Two is right for
+            a full viewport globe on the desk; on a phone band the same setting
+            multiplies the triangle count for curvature the eye cannot resolve
+            at that size, and it is paid again at build time, which is the wait
+            before the globe first appears. Five is indistinguishable there.
+          */
+          polygonCapCurvatureResolution={size.w >= NARROW_WIDTH ? 2 : 5}
+          /*
+            The raycaster runs on every pointer move over the canvas. Through
+            the scripted sequence nothing can be hovered or clicked, so that is
+            pure cost in exactly the phase that is also driving the camera.
+          */
+          enablePointerInteraction={interactive}
           // globe.gl defaults this to the name field and renders its own
           // tooltip. Suppressed, so the only tooltip is the token styled one
           // below and the globe block stays free of text when nothing is hovered.
